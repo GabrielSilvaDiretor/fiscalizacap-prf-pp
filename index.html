@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PRF — Fiscalização de Produtos Perigosos</title>
+<style>
+:root {
+  --azul-prf:#003580; --azul-claro:#0056b3; --verde:#1a7a2e;
+  --vermelho:#c0392b; --laranja:#e67e22; --amarelo:#f39c12;
+  --cinza:#f5f5f5; --borda:#ddd; --texto:#222;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#eef2f7;color:var(--texto);font-size:15px;}
+
+/* HEADER */
+header{background:var(--azul-prf);color:white;padding:12px 16px;display:flex;align-items:center;
+  gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.logo{font-size:22px;font-weight:900;letter-spacing:1px;}
+.subtitulo{font-size:11px;opacity:.85;line-height:1.3;}
+
+/* BUSCA */
+.busca-container{background:white;padding:16px;border-bottom:2px solid var(--azul-prf);}
+.busca-label{font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.busca-row{display:flex;gap:8px;}
+.busca-input{flex:0 0 100px;font-size:20px;font-weight:700;padding:10px 14px;
+  border:2px solid var(--borda);border-radius:8px;letter-spacing:2px;text-align:center;transition:border-color .2s;}
+.busca-input:focus{outline:none;border-color:var(--azul-prf);}
+.busca-nome{flex:1;font-size:14px;padding:10px 14px;border:2px solid var(--borda);
+  border-radius:8px;transition:border-color .2s;}
+.busca-nome:focus{outline:none;border-color:var(--azul-prf);}
+.busca-btn{padding:10px 18px;background:var(--azul-prf);color:white;border:none;
+  border-radius:8px;font-size:16px;cursor:pointer;font-weight:700;}
+.busca-btn:hover{background:var(--azul-claro);}
+.sugestoes{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.sugestao-btn{padding:4px 10px;background:#f0f4ff;border:1px solid #c0cfe8;
+  border-radius:12px;font-size:12px;cursor:pointer;color:var(--azul-prf);}
+.sugestao-btn:hover{background:var(--azul-prf);color:white;}
+
+/* LISTA DE RESULTADOS DE NOME */
+.lista-resultados{margin-top:8px;border:1px solid var(--borda);border-radius:8px;
+  background:white;max-height:220px;overflow-y:auto;display:none;}
+.lista-resultados.visivel{display:block;}
+.item-resultado{padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;}
+.item-resultado:hover{background:#f0f4ff;}
+.item-resultado strong{color:var(--azul-prf);}
+
+/* CARD PRODUTO */
+.card-produto{background:white;border-radius:10px;margin:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);overflow:hidden;}
+.card-header{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:linear-gradient(135deg,#003580,#0056b3);color:white;}
+.onu-badge{background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);
+  border-radius:6px;padding:4px 10px;text-align:center;font-size:11px;font-weight:700;
+  line-height:1.3;min-width:54px;}
+.onu-badge span{display:block;font-size:17px;letter-spacing:1px;}
+.nr-painel{background:#ff8c00;border:2px solid #ff6600;border-radius:6px;
+  padding:2px 8px;text-align:center;min-width:56px;}
+.nr-label{display:block;font-size:9px;font-weight:700;color:#fff;opacity:.85;letter-spacing:.5px;}
+.nr-num{display:block;font-size:18px;font-weight:900;color:white;line-height:1.2;}
+.prod-info{flex:1;}
+.prod-nome{font-size:14px;font-weight:700;line-height:1.3;}
+.prod-meta{font-size:11px;opacity:.85;margin-top:3px;line-height:1.5;}
+.classe-badge{padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;white-space:nowrap;}
+.tipo-badge{display:inline-block;border-radius:5px;padding:3px 9px;font-size:12px;
+  font-weight:700;color:white;margin:6px 14px 0;}
+
+/* ALERTA NO CARD */
+.alert-card{padding:8px 14px;font-size:12px;border-left:4px solid;line-height:1.5;}
+
+/* SEÇÕES ACCORDION */
+.secao{border-bottom:1px solid #eee;}
+.secao-header{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;
+  background:#fafafa;user-select:none;transition:background .15s;}
+.secao-header:hover{background:#f0f4ff;}
+.secao-icone{font-size:18px;width:24px;text-align:center;}
+.secao-titulo{flex:1;font-size:13px;font-weight:700;color:#222;}
+.secao-status{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.status-ok{background:#e8f5e9;color:#1a5c22;}
+.status-alerta{background:#fff3e0;color:#7a3800;}
+.status-critico{background:#fde8e8;color:#8b1a1a;}
+.chevron{font-size:11px;color:#999;transition:transform .2s;}
+.chevron.open{transform:rotate(90deg);}
+.secao-corpo{display:none;padding:10px 14px;}
+.secao-corpo.aberto{display:block;}
+.sub-titulo{font-size:11px;font-weight:700;color:var(--azul-prf);text-transform:uppercase;
+  letter-spacing:.6px;padding:6px 0 3px;border-bottom:1px solid #e8eef8;margin:8px 0 6px;}
+
+/* ITEM CHECK */
+.item-check{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed #f0f0f0;align-items:flex-start;}
+.item-check:last-child{border-bottom:none;}
+.check-icon{font-size:17px;flex-shrink:0;margin-top:1px;}
+.check-principal{font-size:13px;font-weight:700;color:#222;}
+.check-detalhe{font-size:12px;color:#444;margin-top:3px;line-height:1.6;}
+.check-multa{font-size:11px;color:#8b1a1a;margin-top:3px;background:#fdf0f0;
+  padding:2px 6px;border-radius:4px;display:inline-block;}
+
+/* TAGS */
+.tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;margin-right:3px;}
+.tag-obrigatorio{background:#fde8e8;color:#8b1a1a;}
+.tag-dispensado{background:#e8f5e9;color:#1a5c22;}
+.tag-granel{background:#fff3e0;color:#7a3800;}
+.tag-atencao{background:#fffde8;color:#6b5c00;}
+
+/* EPIs */
+.epi-grid{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0;}
+.epi-chip{background:#f0f4ff;border:1px solid #c0cfe8;border-radius:6px;
+  padding:5px 9px;font-size:12px;display:flex;align-items:flex-start;gap:6px;width:100%;}
+.epi-chip.critico{background:#fde8e8;border-color:#e57373;}
+.epi-ico{font-size:16px;flex-shrink:0;}
+.epi-nome{font-weight:700;font-size:12px;}
+.epi-desc{font-size:11px;color:#555;margin-top:2px;line-height:1.5;}
+
+/* EXTINTOR BOX */
+.ext-box{background:#fff3e0;border:2px solid var(--laranja);border-radius:8px;
+  padding:10px 14px;margin:5px 0;}
+.ext-titulo{font-weight:900;color:#7a3800;font-size:13px;margin-bottom:5px;}
+.ext-tipo{font-size:13px;margin-bottom:4px;}
+.ext-qtd{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px;}
+.ext-qtd span{background:white;border:1px solid var(--laranja);border-radius:5px;
+  padding:2px 8px;font-size:12px;font-weight:700;}
+.ext-obs{font-size:11px;color:#7a3800;background:white;border-radius:5px;
+  padding:5px 8px;margin-top:4px;line-height:1.5;}
+
+/* INCOMPAT */
+.incompat-box{background:#fff0f0;border:1px solid #ffaaaa;border-radius:6px;
+  padding:8px 12px;margin:4px 0;font-size:12px;}
+.incompat-item{padding:2px 0;color:#444;}
+.incompat-item::before{content:"🚫 ";font-size:11px;}
+
+/* DOCUMENTO SEQUÊNCIA */
+.seq-doc{background:#f0f7ff;border:2px solid #0056b3;border-radius:8px;
+  padding:10px 14px;margin:8px 0;font-size:12px;}
+.seq-linha{display:flex;gap:8px;align-items:flex-start;margin:5px 0;}
+.seq-num{width:22px;height:22px;border-radius:50%;color:white;font-weight:900;
+  font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.seq-texto{flex:1;line-height:1.5;}
+.seq-exemplo{margin-top:8px;background:#e8f0ff;border-radius:5px;padding:6px 10px;
+  font-size:11px;line-height:1.8;}
+.seq-exemplo code{background:white;padding:1px 5px;border-radius:3px;font-family:monospace;}
+
+/* QUANTIDADE LIMITADA */
+.ql-box{border:2px solid;border-radius:8px;padding:10px 14px;margin:5px 0;}
+.ql-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.ql-col-titulo{font-weight:700;font-size:12px;margin-bottom:4px;}
+.ql-item{font-size:11px;line-height:1.8;color:#444;}
+
+/* CARAC TECNICAS */
+.ct-item{padding:6px 0;border-bottom:1px dashed #eee;font-size:12px;}
+.ct-item:last-child{border-bottom:none;}
+.ct-nao{margin-top:8px;padding:7px 10px;background:#fff3cd;border-radius:6px;
+  font-size:11px;color:#7a5800;line-height:1.6;}
+
+/* MULTAS */
+.multa-tabela{background:#fafafa;border-radius:6px;padding:8px 10px;font-size:12px;}
+.multa-linha{display:flex;justify-content:space-between;padding:4px 0;
+  border-bottom:1px solid #f0f0f0;}
+.multa-linha:last-child{border-bottom:none;}
+.multa-valor{font-weight:700;color:var(--vermelho);}
+
+/* EMERGENCIA */
+.info-emergencia{background:#fff3e0;border-radius:6px;padding:10px 14px;font-size:12px;line-height:1.8;}
+.info-emergencia ul{padding-left:16px;}
+
+/* CARD AJUDA */
+.card-ajuda{background:white;border-radius:10px;margin:12px;padding:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:13px;color:#555;line-height:1.7;}
+.card-ajuda h3{color:var(--azul-prf);margin-bottom:8px;}
+
+/* CORES POR CLASSE */
+.cl-1{background:#ff6b35;color:white;} .cl-2{background:#28a745;color:white;}
+.cl-3{background:#e74c3c;color:white;} .cl-41{background:#e67e22;color:white;}
+.cl-42{background:#d35400;color:white;} .cl-43{background:#2980b9;color:white;}
+.cl-51{background:#f39c12;color:white;} .cl-52{background:#e74c3c;color:white;}
+.cl-61{background:#8e44ad;color:white;} .cl-62{background:#c0392b;color:white;}
+.cl-7{background:#f1c40f;color:#222;} .cl-8{background:#2c3e50;color:white;}
+.cl-9{background:#7f8c8d;color:white;}
+
+/* FOOTER */
+.footer-legal{text-align:center;padding:12px;font-size:11px;color:#888;
+  border-top:1px solid #ddd;background:white;margin-top:12px;line-height:1.8;}
+
+@media(max-width:480px){
+  .busca-row{flex-wrap:wrap;}
+  .busca-nome{min-width:100%;order:1;}
+  .busca-input{order:0;flex:0 0 110px;}
+  .busca-btn{order:2;}
+  .ql-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">🚔 PRF</div>
+  </div>
+  <div class="subtitulo">
+    <strong>FISCALIZAÇÃO</strong><br>Produtos Perigosos
+  </div>
+  <div style="margin-left:auto;text-align:right;font-size:10px;opacity:.9;line-height:1.5;">
+    <div style="background:#1a7a2e;border-radius:4px;padding:2px 7px;display:inline-block;font-weight:700;letter-spacing:.5px;">MPO-005 / 2025</div><br>
+    Res. ANTT 5.998/22 + 6.056/24
+  </div>
+</header>
+
+<div class="busca-container">
+  <div class="busca-label">Buscar por Número ONU ou Nome do Produto</div>
+  <div class="busca-row">
+    <input type="text" id="inputONU" class="busca-input" placeholder="1203"
+      maxlength="4" inputmode="numeric" autocomplete="off">
+    <input type="text" id="inputNome" class="busca-nome" placeholder="ou parte do nome do produto..."
+      autocomplete="off">
+    <button class="busca-btn" onclick="buscar()">🔍</button>
+  </div>
+  <div id="listaResultados" class="lista-resultados"></div>
+  <div class="sugestoes">
+    <button class="sugestao-btn" onclick="selecionarProduto('1203')">1203 Gasolina</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1202')">1202 Diesel</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1075')">1075 GLP</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1170')">1170 Etanol</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1942')">1942 Nitrato Amônio</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1789')">1789 Ác. Clorídrico</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1830')">1830 Ác. Sulfúrico</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('3090')">3090 Bat. Lítio</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('2814')">2814 Infeccioso</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('3077')">3077 Risco Amb.</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1230')">1230 Metanol</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('1090')">1090 Acetona</button>
+    <button class="sugestao-btn" onclick="selecionarProduto('3509')">3509 Emb. Vazia</button>
+  </div>
+</div>
+
+<div id="resultado">
+  <div class="card-ajuda">
+    <h3>ℹ️ Como usar</h3>
+    <p>Digite o <strong>Número ONU</strong> (4 dígitos) no campo da esquerda <strong>ou</strong> parte do nome do produto no campo da direita. O sistema exibirá todas as exigências específicas para aquele produto.</p>
+    <p style="margin-top:8px;">Base normativa: <strong>MPO-005 (Fev/2025)</strong> + Res. ANTT 5.998/2022 + 6.056/2024. Somente as exigências previstas no MPO-005 devem ser cobradas na fiscalização de rodovias federais.</p>
+  </div>
+</div>
+
+<div class="footer-legal">
+  Base: <strong>MPO-005 (Fev/2025)</strong> — Manual de Fiscalização PRF | Res. ANTT 5.998/2022 + 6.056/2024<br>
+  Sistema auxiliar de fiscalização — não substitui o MPO-005 nem a legislação vigente.<br>
+  Emergências com PP: <strong>MPO-040</strong> | Crimes ambientais: <strong>MPO-034 / MPO-036</strong>
+</div>
+
+<script>
+// ============================================================
+// BASE DE DADOS — PRODUTOS PERIGOSOS
+// Fonte: Relação Alfabética PP (ANTT/ABNT) + Res. 5.998/2022
+// Campos: n=nome, c=classe, s=subclasse, r=num.risco,
+//         g=GE, q=qtd limitada(kg) ou "zero", tipo=granel|embalado|granel_embalado
+// ============================================================
+const DB = {
+// CLASSE 1 — EXPLOSIVOS
+"0012":{ n:"CARTUCHOS PARA ARMAS, PROJÉTEIS INERTES ou PARA ARMAS PORTÁTEIS", c:"1", s:"1.4S", r:"", g:null, q:1000, tipo:"embalado" },
+"0014":{ n:"CARTUCHOS PARA ARMAS, FESTIM ou PARA ARMAS PORTÁTEIS, FESTIM", c:"1", s:"1.4S", r:"", g:null, q:1000, tipo:"embalado" },
+"0027":{ n:"PÓLVORA NEGRA, granulada ou em pó", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0028":{ n:"PÓLVORA NEGRA, COMPRIMIDA ou EM PASTILHAS", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0065":{ n:"CORDEL DETONANTE, flexível", c:"1", s:"1.1D", r:"", g:null, q:50, tipo:"embalado" },
+"0066":{ n:"CORDEL ACENDEDOR", c:"1", s:"1.4G", r:"", g:null, q:500, tipo:"embalado" },
+"0081":{ n:"EXPLOSIVOS DE DEMOLIÇÃO, TIPO A (Dinamites)", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0082":{ n:"EXPLOSIVOS DE DEMOLIÇÃO, TIPO B", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0083":{ n:"EXPLOSIVOS DE DEMOLIÇÃO, TIPO C", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0084":{ n:"EXPLOSIVOS DE DEMOLIÇÃO, TIPO D (plástico)", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0160":{ n:"PÓLVORA SEM FUMAÇA", c:"1", s:"1.1C", r:"", g:null, q:20, tipo:"embalado" },
+"0209":{ n:"TRINITROTOLUENO (TNT), seco ou umedecido c/ menos de 30% água", c:"1", s:"1.1D", r:"", g:null, q:5, tipo:"embalado" },
+"0331":{ n:"EXPLOSIVOS DE DEMOLIÇÃO, TIPO B (emulsão/lama)", c:"1", s:"1.5D", r:"", g:null, q:5, tipo:"embalado" },
+
+// CLASSE 2 — GASES
+"1001":{ n:"ACETILENO, DISSOLVIDO", c:"2", s:"2.1", r:"239", g:null, q:333, tipo:"granel_embalado" },
+"1005":{ n:"AMÔNIA ANIDRA LIQUEFEITA ou SOLUÇÃO AQUOSA maior que 50%", c:"2", s:"2.3", r:"268", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1011":{ n:"BUTANO ou MISTURAS DE BUTANO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1012":{ n:"BUTENO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1013":{ n:"DIÓXIDO DE CARBONO", c:"2", s:"2.2", r:"20", g:null, q:333, tipo:"granel_embalado" },
+"1016":{ n:"MONÓXIDO DE CARBONO", c:"2", s:"2.3", r:"263", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1017":{ n:"CLORO", c:"2", s:"2.3", r:"265", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1027":{ n:"CICLOPROPANO, LIQUEFEITO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1030":{ n:"DIFLUORETANO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1032":{ n:"DIMETILAMINA, ANIDRA", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1033":{ n:"ÉTER DIMETÍLICO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1035":{ n:"ETANO, COMPRIMIDO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1036":{ n:"ETILAMINA", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1038":{ n:"ETENO, LÍQUIDO REFRIGERADO", c:"2", s:"2.1", r:"223", g:null, q:333, tipo:"granel" },
+"1040":{ n:"ÓXIDO DE ETENO, puro ou com nitrogênio", c:"2", s:"2.3", r:"236", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1048":{ n:"BROMETO DE HIDROGÊNIO, ANIDRO", c:"2", s:"2.3", r:"286", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1049":{ n:"HIDROGÊNIO, COMPRIMIDO", c:"2", s:"2.1", r:"23", g:null, q:1000, tipo:"granel_embalado" },
+"1050":{ n:"CLORETO DE HIDROGÊNIO, ANIDRO", c:"2", s:"2.3", r:"286", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1053":{ n:"SULFETO DE HIDROGÊNIO, LIQUEFEITO", c:"2", s:"2.3", r:"236", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1055":{ n:"ISOBUTILENO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1061":{ n:"METILAMINA, ANIDRA", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1062":{ n:"BROMETO DE METILA", c:"2", s:"2.3", r:"26", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1063":{ n:"CLORETO DE METILA", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1064":{ n:"METILMERCAPTANA", c:"2", s:"2.3", r:"236", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1065":{ n:"NEÔNIO, COMPRIMIDO", c:"2", s:"2.2", r:"20", g:null, q:1000, tipo:"granel_embalado" },
+"1066":{ n:"NITROGÊNIO, COMPRIMIDO", c:"2", s:"2.2", r:"20", g:null, q:1000, tipo:"granel_embalado" },
+"1070":{ n:"ÓXIDO NITROSO, COMPRIMIDO", c:"2", s:"2.2", r:"25", g:null, q:333, tipo:"granel_embalado" },
+"1071":{ n:"GÁS DE ÓLEO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1072":{ n:"OXIGÊNIO, COMPRIMIDO", c:"2", s:"2.2", r:"25", g:null, q:1000, tipo:"granel_embalado" },
+"1073":{ n:"OXIGÊNIO, LÍQUIDO REFRIGERADO", c:"2", s:"2.2", r:"225", g:null, q:333, tipo:"granel" },
+"1075":{ n:"GÁS LIQUEFEITO DE PETRÓLEO (GLP)", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1076":{ n:"FOSGÊNIO", c:"2", s:"2.3", r:"266", g:null, q:50, tipo:"granel", tox:true },
+"1077":{ n:"PROPENO (PROPILENO)", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1079":{ n:"DIÓXIDO DE ENXOFRE, LIQUEFEITO", c:"2", s:"2.3", r:"26", g:null, q:333, tipo:"granel_embalado", tox:true },
+"1083":{ n:"TRIMETILAMINA, ANIDRA", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1085":{ n:"BROMETO DE VINILA, INIBIDO", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1086":{ n:"CLORETO DE VINILA, INIBIDO", c:"2", s:"2.1", r:"239", g:null, q:333, tipo:"granel_embalado" },
+"1087":{ n:"ÉTER METILVINÍLICO, INIBIDO", c:"2", s:"2.1", r:"236", g:null, q:333, tipo:"granel_embalado" },
+"1950":{ n:"AEROSSÓIS", c:"2", s:"2.2", r:"", g:null, q:333, tipo:"embalado" },
+"1954":{ n:"GÁS INFLAMÁVEL COMPRIMIDO, N.E.", c:"2", s:"2.1", r:"23", g:null, q:null, tipo:"granel_embalado" },
+"1965":{ n:"HIDROCARBONETOS GASOSOS LIQUEFEITOS, N.E.", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1969":{ n:"ISOBUTANO ou MISTURAS DE ISOBUTANO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"1971":{ n:"METANO COMPRIMIDO ou GÁS NATURAL COMPRIMIDO (GNC)", c:"2", s:"2.1", r:"23", g:null, q:1000, tipo:"granel_embalado" },
+"1972":{ n:"METANO LÍQUIDO REFRIGERADO ou GÁS NATURAL LIQUEFEITO (GNL)", c:"2", s:"2.1", r:"223", g:null, q:333, tipo:"granel" },
+"1978":{ n:"PROPANO ou MISTURAS DE PROPANO", c:"2", s:"2.1", r:"23", g:null, q:333, tipo:"granel_embalado" },
+"2073":{ n:"AMÔNIA, SOLUÇÕES AQUOSAS, 35-50%", c:"2", s:"2.2", r:"268", g:null, q:333, tipo:"granel_embalado" },
+"2188":{ n:"ARSINA", c:"2", s:"2.3", r:"23", g:null, q:333, tipo:"granel", tox:true },
+"2199":{ n:"FOSFINA", c:"2", s:"2.3", r:"236", g:null, q:333, tipo:"granel", tox:true },
+"2672":{ n:"AMÔNIA, SOLUÇÕES AQUOSAS, 10-35%", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"granel_embalado" },
+
+// CLASSE 3 — LÍQUIDOS INFLAMÁVEIS
+"1088":{ n:"ACETAL", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1089":{ n:"ACETALDEÍDO", c:"3", s:"3", r:"33", g:"I", q:333, tipo:"embalado" },
+"1090":{ n:"ACETONA", c:"3", s:"3", r:"33", g:"II", q:50, tipo:"granel_embalado" },
+"1092":{ n:"ACROLEÍNA, INIBIDA", c:"6.1", s:"6.1/3", r:"663", g:"I", q:5, tipo:"embalado", tox:true },
+"1093":{ n:"ACRILONITRILA, INIBIDA", c:"3", s:"3/6.1", r:"336", g:"I", q:5, tipo:"embalado", tox:true },
+"1099":{ n:"BROMETO DE ALILA", c:"3", s:"3/6.1", r:"336", g:"I", q:5, tipo:"embalado", tox:true },
+"1100":{ n:"CLORETO DE ALILA", c:"3", s:"3/6.1", r:"336", g:"I", q:5, tipo:"embalado", tox:true },
+"1114":{ n:"BENZENO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1120":{ n:"BUTANÓIS", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"granel_embalado" },
+"1123":{ n:"ACETATO(S) DE BUTILA", c:"3", s:"3", r:"33", g:"II/III", q:333, tipo:"embalado" },
+"1125":{ n:"n-BUTILAMINA", c:"3", s:"3", r:"338", g:"II", q:100, tipo:"embalado" },
+"1131":{ n:"DISSULFETO DE CARBONO", c:"3", s:"3/6.1", r:"336", g:"I", q:5, tipo:"embalado", tox:true },
+"1134":{ n:"CLOROBENZENO", c:"3", s:"3", r:"30", g:"III", q:500, tipo:"embalado" },
+"1145":{ n:"CICLO-HEXANO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1148":{ n:"DIACETONA ÁLCOOL", c:"3", s:"3", r:"30", g:"III", q:333, tipo:"embalado" },
+"1155":{ n:"ÉTER DIETÍLICO (ÉTER ETÍLICO)", c:"3", s:"3", r:"33", g:"I", q:50, tipo:"embalado" },
+"1161":{ n:"CARBONATO DE DIMETILA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1170":{ n:"ETANOL (ÁLCOOL ETÍLICO) ou SOLUÇÕES DE ETANOL", c:"3", s:"3", r:"33", g:"II/III", q:333, tipo:"granel_embalado", obs:"Equipamento certificado para ONU 1170 pode transportar bebidas alcoólicas e produtos alimentícios (§1º Art.13 Res. 6056)." },
+"1173":{ n:"ACETATO DE ETILA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1193":{ n:"ETILMETILCETONA (METILETILCETONA)", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1197":{ n:"EXTRATOS, AROMATIZANTES, LÍQUIDOS", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado" },
+"1199":{ n:"FURFURAL", c:"3", s:"3", r:"30", g:"III", q:1000, tipo:"embalado" },
+"1202":{ n:"GASÓLEO / ÓLEO DIESEL / ÓLEO DE AQUECIMENTO LEVE", c:"3", s:"3", r:"30", g:"III", q:333, tipo:"granel_embalado" },
+"1203":{ n:"GASOLINA ou GASOLINA PARA MOTORES (COMBUSTÍVEL PARA MOTORES)", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"granel_embalado" },
+"1206":{ n:"HEPTANOS", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1208":{ n:"HEXANOS", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1212":{ n:"ISOBUTANOL (ÁLCOOL ISOBUTÍLICO)", c:"3", s:"3", r:"30", g:"III", q:500, tipo:"embalado" },
+"1219":{ n:"ISOPROPANOL (ÁLCOOL ISOPROPÍLICO)", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"granel_embalado" },
+"1220":{ n:"ACETATO DE ISOPROPILA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1221":{ n:"ISOPROPILAMINA", c:"3", s:"3", r:"338", g:"I", q:5, tipo:"embalado" },
+"1223":{ n:"QUEROSENE", c:"3", s:"3", r:"30", g:"III", q:333, tipo:"granel_embalado" },
+"1230":{ n:"METANOL (ÁLCOOL METÍLICO)", c:"3", s:"3/6.1", r:"336", g:"II", q:100, tipo:"granel_embalado", tox:true },
+"1231":{ n:"ACETATO DE METILA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1234":{ n:"METILAL", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1245":{ n:"METILISOBUTILCETONA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1247":{ n:"METACRILATO DE METILA, MONÔMERO, INIBIDO", c:"3", s:"3", r:"339", g:"II", q:333, tipo:"embalado" },
+"1248":{ n:"PROPIONATO DE METILA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1249":{ n:"METILPROPILCETONA", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1255":{ n:"NAFTA, de petróleo", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado" },
+"1257":{ n:"GASOLINA NATURAL", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"granel_embalado" },
+"1261":{ n:"NITROMETANO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1263":{ n:"TINTA ou MATERIAL RELACIONADO À TINTA (inflamável)", c:"3", s:"3", r:"30", g:"I/II/III", q:333, tipo:"embalado" },
+"1265":{ n:"n-PENTANO ou ISOPENTANO", c:"3", s:"3", r:"33", g:"I", q:333, tipo:"embalado" },
+"1267":{ n:"PETRÓLEO CRU (ÓLEO BRUTO)", c:"3", s:"3", r:"33", g:"I/II/III", q:333, tipo:"granel_embalado" },
+"1268":{ n:"DESTILADOS DE PETRÓLEO, N.E.", c:"3", s:"3", r:"30", g:"I/II/III", q:333, tipo:"granel_embalado" },
+"1270":{ n:"PETRÓLEO, ÓLEO", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"granel_embalado" },
+"1271":{ n:"ÉTER DE PETRÓLEO", c:"3", s:"3", r:"33", g:"I/II", q:333, tipo:"embalado" },
+"1272":{ n:"ÓLEO DE PINHO", c:"3", s:"3", r:"30", g:"III", q:1000, tipo:"embalado" },
+"1274":{ n:"n-PROPANOL (ÁLCOOL PROPÍLICO NORMAL)", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1275":{ n:"PROPIONALDEÍDO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1282":{ n:"PIRIDINA", c:"3", s:"3/6.1", r:"336", g:"II", q:100, tipo:"embalado", tox:true },
+"1287":{ n:"BORRACHA, EM SOLUÇÃO", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado" },
+"1294":{ n:"TOLUENO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1299":{ n:"TEREBENTINA", c:"3", s:"3", r:"30", g:"III", q:500, tipo:"embalado" },
+"1300":{ n:"TEREBENTINA, SUBSTITUTOS", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado" },
+"1301":{ n:"ACETATO DE VINILA, INIBIDO", c:"3", s:"3", r:"339", g:"II", q:333, tipo:"embalado" },
+"1306":{ n:"PRESERVATIVOS PARA MADEIRA, LÍQUIDOS", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado" },
+"1307":{ n:"XILENOS", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"granel_embalado" },
+"1308":{ n:"ZIRCÔNIO, SUSPENSÃO EM LÍQUIDO", c:"3", s:"3", r:"33", g:"II", q:333, tipo:"embalado" },
+"1648":{ n:"CIANETO DE METILA (ACETONITRILA)", c:"3", s:"3/6.1", r:"336", g:"II", q:100, tipo:"embalado", tox:true },
+"1863":{ n:"COMBUSTÍVEL PARA AVIÕES A TURBINA", c:"3", s:"3", r:"30", g:"I/II/III", q:333, tipo:"granel" },
+"1866":{ n:"RESINA, SOLUÇÃO, inflamável", c:"3", s:"3", r:"30", g:"I/II/III", q:333, tipo:"embalado" },
+"1993":{ n:"LÍQUIDO INFLAMÁVEL, N.E.", c:"3", s:"3", r:"30", g:"I/II/III", q:null, tipo:"embalado" },
+"2055":{ n:"ESTIRENO, MONÔMERO, INIBIDO", c:"3", s:"3", r:"39", g:"III", q:500, tipo:"embalado" },
+"3065":{ n:"BEBIDAS ALCOÓLICAS (maior que 24% álcool)", c:"3", s:"3", r:"30", g:"II/III", q:333, tipo:"embalado", obs:"Bebidas com 24% de álcool ou menos são ISENTAS. Equipamento certif. para ONU 3065 pode transportar demais bebidas e alimentos (§1º Art.13 Res. 6056)." },
+"3066":{ n:"TINTA (incluindo tintas, lacas, vernizes) CORROSIVA", c:"8", s:"8", r:"80", g:"I/II/III", q:100, tipo:"embalado" },
+
+// CLASSE 4.1 — SÓLIDOS INFLAMÁVEIS
+"1325":{ n:"SÓLIDO ORGÂNICO INFLAMÁVEL, N.E.", c:"4.1", s:"4.1", r:"40", g:"II/III", q:50, tipo:"embalado" },
+"1333":{ n:"CÉRIO, chapas, lingotes ou barras", c:"4.1", s:"4.1", r:"40", g:"II", q:50, tipo:"embalado" },
+"1334":{ n:"NAFTALENO, BRUTO ou REFINADO", c:"4.1", s:"4.1", r:"40", g:"III", q:333, tipo:"embalado" },
+"1338":{ n:"FÓSFORO, AMORFO (vermelho)", c:"4.1", s:"4.1", r:"40", g:"III", q:333, tipo:"embalado" },
+"1344":{ n:"TRINITROFENOL (ÁCIDO PÍCRICO) UMEDECIDO, com 30% de água", c:"4.1", s:"4.1", r:"", g:"I", q:5, tipo:"embalado" },
+"1345":{ n:"BORRACHA, RASPAS ou REFUGOS, em pó", c:"4.1", s:"4.1", r:"40", g:"II", q:1000, tipo:"embalado" },
+"1350":{ n:"ENXOFRE", c:"4.1", s:"4.1", r:"40", g:"III", q:333, tipo:"granel_embalado" },
+"1353":{ n:"FIBRAS ou TECIDOS IMPREGNADOS COM NITROCELULOSE FRACAMENTE NITRADA", c:"4.1", s:"4.1", r:"40", g:"III", q:50, tipo:"embalado" },
+"1356":{ n:"TRINITROTOLUENO (TNT) UMEDECIDO, com 30% de água", c:"4.1", s:"4.1", r:"", g:"I", q:5, tipo:"embalado" },
+"1944":{ n:"FÓSFOROS DE SEGURANÇA (carteiras, cartelas, caixas)", c:"4.1", s:"4.1", r:"40", g:"III", q:1000, tipo:"embalado" },
+"2304":{ n:"NAFTALENO, FUNDIDO", c:"4.1", s:"4.1", r:"44", g:"III", q:50, tipo:"granel" },
+"2448":{ n:"ENXOFRE, FUNDIDO", c:"4.1", s:"4.1", r:"44", g:"III", q:50, tipo:"granel" },
+
+// CLASSE 4.2 — COMBUSTÃO ESPONTÂNEA
+"1361":{ n:"CARVÃO, de origem animal ou vegetal", c:"4.2", s:"4.2", r:"40", g:"II/III", q:333, tipo:"granel_embalado" },
+"1362":{ n:"CARVÃO ATIVADO", c:"4.2", s:"4.2", r:"40", g:"III", q:1000, tipo:"granel_embalado" },
+"1381":{ n:"FÓSFORO BRANCO ou AMARELO, SECO ou SOB ÁGUA", c:"4.2", s:"4.2/6.1", r:"46", g:"I", q:"zero", tipo:"embalado", tox:true },
+"1383":{ n:"METAIS PIROFÓRICOS, N.E. ou LIGAS PIROFÓRICAS, N.E.", c:"4.2", s:"4.2", r:"333", g:"I", q:"zero", tipo:"embalado" },
+"1384":{ n:"DITIONITO DE SÓDIO (HIDROSSULFITO DE SÓDIO)", c:"4.2", s:"4.2", r:"40", g:"II", q:333, tipo:"embalado" },
+"1923":{ n:"DITIONITO DE CÁLCIO (HIDROSSULFITO DE CÁLCIO)", c:"4.2", s:"4.2", r:"40", g:"II", q:333, tipo:"embalado" },
+"3170":{ n:"ESCÓRIA DE ALUMÍNIO", c:"4.3", s:"4.3", r:"423", g:null, q:333, tipo:"granel_embalado" },
+
+// CLASSE 4.3 — REAGEM COM ÁGUA
+"1396":{ n:"ALUMÍNIO, EM PÓ, NÃO-REVESTIDO", c:"4.3", s:"4.3", r:"423", g:"II/III", q:333, tipo:"embalado" },
+"1397":{ n:"FOSFETO DE ALUMÍNIO", c:"4.3", s:"4.3/6.1", r:"423", g:"I", q:5, tipo:"embalado", tox:true },
+"1400":{ n:"BÁRIO", c:"4.3", s:"4.3", r:"423", g:"II", q:333, tipo:"embalado" },
+"1401":{ n:"CÁLCIO", c:"4.3", s:"4.3", r:"423", g:"II", q:333, tipo:"embalado" },
+"1402":{ n:"CARBURETO DE CÁLCIO", c:"4.3", s:"4.3", r:"423", g:"II", q:333, tipo:"embalado" },
+"1403":{ n:"CIANAMIDA CÁLCICA, com mais de 0,1% de carbureto de cálcio", c:"4.3", s:"4.3", r:"423", g:"III", q:"zero", tipo:"embalado" },
+"1404":{ n:"HIDRETO DE CÁLCIO", c:"4.3", s:"4.3", r:"423", g:"I", q:5, tipo:"embalado" },
+"1405":{ n:"SILICIETO DE CÁLCIO", c:"4.3", s:"4.3", r:"423", g:null, q:333, tipo:"embalado" },
+"1415":{ n:"LÍTIO", c:"4.3", s:"4.3", r:"X423", g:"II", q:5, tipo:"embalado" },
+"1418":{ n:"MAGNÉSIO, EM PÓ, ou LIGAS DE MAGNÉSIO, EM PÓ", c:"4.3", s:"4.3/4.2", r:"423", g:"II/III", q:5, tipo:"embalado" },
+"1426":{ n:"BORO-HIDRETO DE SÓDIO", c:"4.3", s:"4.3", r:"423", g:"I", q:5, tipo:"embalado" },
+"1427":{ n:"HIDRETO DE SÓDIO", c:"4.3", s:"4.3", r:"423", g:"I", q:5, tipo:"embalado" },
+"1428":{ n:"SÓDIO", c:"4.3", s:"4.3", r:"X423", g:"I", q:5, tipo:"embalado" },
+"1432":{ n:"FOSFETO DE SÓDIO", c:"4.3", s:"4.3/6.1", r:"423", g:"I", q:5, tipo:"embalado", tox:true },
+"1360":{ n:"FOSFETO DE CÁLCIO", c:"4.3", s:"4.3/6.1", r:"423", g:"I", q:5, tipo:"embalado", tox:true },
+"1714":{ n:"FOSFETO DE ZINCO", c:"4.3", s:"4.3/6.1", r:"423", g:"I", q:5, tipo:"embalado", tox:true },
+"2010":{ n:"HIDRETO DE MAGNÉSIO", c:"4.3", s:"4.3", r:"423", g:"I", q:5, tipo:"embalado" },
+"2257":{ n:"POTÁSSIO", c:"4.3", s:"4.3", r:"X423", g:"I", q:5, tipo:"embalado" },
+
+// CLASSE 5.1 — OXIDANTES
+"1442":{ n:"PERCLORATO DE AMÔNIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1446":{ n:"NITRATO DE BÁRIO", c:"5.1", s:"5.1/6.1", r:"56", g:"II", q:100, tipo:"embalado" },
+"1452":{ n:"CLORATO DE CÁLCIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1454":{ n:"NITRATO DE CÁLCIO", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"embalado" },
+"1462":{ n:"CLORITOS INORGÂNICOS, N.E.", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1471":{ n:"HIPOCLORITO DE LÍTIO, SECO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1477":{ n:"NITRATOS INORGÂNICOS, N.E.", c:"5.1", s:"5.1", r:"50", g:"II/III", q:100, tipo:"embalado" },
+"1479":{ n:"SÓLIDO OXIDANTE, N.E.", c:"5.1", s:"5.1", r:"50", g:"I/II/III", q:50, tipo:"embalado" },
+"1481":{ n:"PERCLORATOS INORGÂNICOS, N.E.", c:"5.1", s:"5.1", r:"50", g:"II/III", q:100, tipo:"embalado" },
+"1484":{ n:"BROMATO DE POTÁSSIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1485":{ n:"CLORATO DE POTÁSSIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1486":{ n:"NITRATO DE POTÁSSIO", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado" },
+"1489":{ n:"PERCLORATO DE POTÁSSIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1490":{ n:"PERMANGANATO DE POTÁSSIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1494":{ n:"BROMATO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1495":{ n:"CLORATO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1498":{ n:"NITRATO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado" },
+"1500":{ n:"NITRITO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"embalado" },
+"1502":{ n:"PERCLORATO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1503":{ n:"PERMANGANATO DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1511":{ n:"HIDROPERÓXIDO DE UREIA", c:"5.1", s:"5.1/8", r:"58", g:"III", q:500, tipo:"embalado" },
+"1748":{ n:"HIPOCLORITO DE CÁLCIO, SECO, mais de 39% cloro livre", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"1791":{ n:"HIPOCLORITO EM SOLUÇÃO, mais de 5% cloro livre", c:"8", s:"8", r:"85", g:"II/III", q:100, tipo:"embalado" },
+"1942":{ n:"NITRATO DE AMÔNIO (fertilizante 0,2% substâncias combustíveis)", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado", obs:"ONU 1942: Fertilizante. Caçamba certificada pode ser usada com lona interna para commodities agrícolas (§2º Art.13 Res.6056). NÃO misturar com combustíveis." },
+"2014":{ n:"PERÓXIDO DE HIDROGÊNIO, SOLUÇÕES AQUOSAS 20-60%", c:"5.1", s:"5.1/8", r:"58", g:"II", q:100, tipo:"embalado" },
+"2067":{ n:"NITRATO DE AMÔNIO, FERTILIZANTE N.E.", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado", obs:"Fertilizante N-P-K base nitrato de amônio. Verificar presença de combustíveis (incompatibilidade)." },
+"2068":{ n:"NITRATO DE AMÔNIO, FERTILIZANTE (80-90% + carbonato cálcio/dolomita)", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado" },
+"2069":{ n:"NITRATO DE AMÔNIO, FERTILIZANTE (sulfato amônio, 45-70% nitrato)", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado" },
+"2070":{ n:"NITRATO DE AMÔNIO, FERTILIZANTE N/P ou N/K, 70-90%", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"granel_embalado" },
+"2071":{ n:"NITRATO DE AMÔNIO, FERTILIZANTE N/P/K, até 70%", c:"9", s:"9", r:"50", g:"III", q:100, tipo:"granel_embalado" },
+"2208":{ n:"MISTURAS DE HIPOCLORITO DE CÁLCIO, SECAS, 10-39% cloro livre", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"embalado" },
+"2465":{ n:"ÁCIDO DICLOROISOCIANÚRICO, SECO, ou SAIS", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"2467":{ n:"PERCARBONATOS DE SÓDIO", c:"5.1", s:"5.1", r:"50", g:"III", q:500, tipo:"embalado" },
+"2468":{ n:"ÁCIDO TRICLOROISOCIANÚRICO, SECO", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"2626":{ n:"ÁCIDO CLÓRICO, SOLUÇÃO AQUOSA, até 10%", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+"2880":{ n:"HIPOCLORITO DE CÁLCIO HIDRATADO, 5,5-10% água", c:"5.1", s:"5.1", r:"50", g:"II", q:100, tipo:"embalado" },
+
+// CLASSE 5.2 — PERÓXIDOS ORGÂNICOS
+"3101":{ n:"PERÓXIDO ORGÂNICO TIPO B, LÍQUIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3102":{ n:"PERÓXIDO ORGÂNICO TIPO B, SÓLIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3103":{ n:"PERÓXIDO ORGÂNICO TIPO C, LÍQUIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3105":{ n:"PERÓXIDO ORGÂNICO TIPO D, LÍQUIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3106":{ n:"PERÓXIDO ORGÂNICO TIPO D, SÓLIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3107":{ n:"PERÓXIDO ORGÂNICO TIPO E, LÍQUIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3108":{ n:"PERÓXIDO ORGÂNICO TIPO E, SÓLIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3109":{ n:"PERÓXIDO ORGÂNICO TIPO F, LÍQUIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+"3110":{ n:"PERÓXIDO ORGÂNICO TIPO F, SÓLIDO", c:"5.2", s:"5.2", r:"539", g:"II", q:"zero", tipo:"embalado" },
+
+// CLASSE 6.1 — TÓXICOS
+"1051":{ n:"ÁCIDO CIANÍDRICO, ANIDRO, ESTABILIZADO", c:"6.1", s:"6.1", r:"663", g:"I", q:"zero", tipo:"embalado", tox:true },
+"1547":{ n:"ANILINA", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1558":{ n:"ARSÊNIO", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1561":{ n:"TRIÓXIDO DE ARSÊNIO", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1580":{ n:"CLOROPICRINA", c:"6.1", s:"6.1", r:"66", g:"I", q:5, tipo:"embalado", tox:true },
+"1596":{ n:"DINITROANILINAS", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1597":{ n:"DINITROBENZENOS", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1613":{ n:"ÁCIDO CIANÍDRICO, SOLUÇÃO AQUOSA, até 20%", c:"6.1", s:"6.1", r:"663", g:"I", q:"zero", tipo:"embalado", tox:true },
+"1649":{ n:"MISTURAS ANTIDETONANTES PARA COMBUSTÍVEL", c:"6.1", s:"6.1", r:"663", g:"I", q:5, tipo:"embalado", tox:true },
+"1660":{ n:"ÓXIDO NÍTRICO", c:"2", s:"2.3", r:"265", g:null, q:333, tipo:"granel", tox:true },
+"1662":{ n:"NITROBENZENO", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1664":{ n:"NITROTOLUENOS (o-, m-, p-)", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1671":{ n:"FENOL, SÓLIDO", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"1680":{ n:"CIANETO DE POTÁSSIO", c:"6.1", s:"6.1", r:"66", g:"I", q:5, tipo:"embalado", tox:true },
+"1689":{ n:"CIANETO DE SÓDIO", c:"6.1", s:"6.1", r:"66", g:"I", q:5, tipo:"embalado", tox:true },
+"1704":{ n:"DITIOPIROFOSFATO DE TETRAETILA", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"2642":{ n:"ÁCIDO FLUORACÉTICO", c:"6.1", s:"6.1", r:"60", g:"I", q:5, tipo:"embalado", tox:true },
+"2810":{ n:"LÍQUIDO TÓXICO, N.E.", c:"6.1", s:"6.1", r:"60", g:"I/II/III", q:null, tipo:"embalado", tox:true },
+"2811":{ n:"SÓLIDO TÓXICO, N.E.", c:"6.1", s:"6.1", r:"60", g:"I/II/III", q:null, tipo:"embalado", tox:true },
+"2821":{ n:"FENOL, SOLUÇÕES", c:"6.1", s:"6.1", r:"60", g:"II", q:50, tipo:"embalado", tox:true },
+"2902":{ n:"PESTICIDA LÍQUIDO, TÓXICO, N.E.", c:"6.1", s:"6.1", r:"60", g:"I/II/III", q:null, tipo:"embalado", tox:true },
+"2903":{ n:"PESTICIDA LÍQUIDO, TÓXICO, INFLAMÁVEL, N.E.", c:"6.1", s:"6.1/3", r:"63", g:"II/III", q:null, tipo:"embalado", tox:true },
+
+// CLASSE 6.2 — INFECTANTES
+"2814":{ n:"SUBSTÂNCIAS INFECTANTES PARA SERES HUMANOS", c:"6.2", s:"6.2", r:"", g:null, q:"zero", tipo:"embalado", infec:true },
+"2900":{ n:"SUBSTÂNCIAS INFECTANTES PARA ANIMAIS", c:"6.2", s:"6.2", r:"", g:null, q:"zero", tipo:"embalado", infec:true },
+"3291":{ n:"RESÍDUO CLÍNICO NÃO ESPECIFICADO, N.E.", c:"6.2", s:"6.2", r:"", g:null, q:"zero", tipo:"embalado", infec:true },
+"3373":{ n:"SUBSTÂNCIA BIOLÓGICA, CATEGORIA B", c:"6.2", s:"6.2", r:"", g:null, q:"zero", tipo:"embalado", infec:true, obs:"Categoria B: menor risco. Exige embalagem tripla. Dispensado de vários requisitos da Categoria A (ONU 2814/2900)." },
+
+// CLASSE 7 — RADIOATIVOS
+"2912":{ n:"MATERIAL RADIOATIVO, BAIXA ATIVIDADE ESPECÍFICA (BAE), N.E.", c:"7", s:"7", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+"2915":{ n:"MATERIAL RADIOATIVO, TIPO A, EMBALAGEM ESPECIAL", c:"7", s:"7", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+"2974":{ n:"MATERIAL RADIOATIVO, FORMA ESPECIAL, N.E.", c:"7", s:"7", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+"2977":{ n:"HEXAFLUORETO DE URÂNIO, FÍSSIL", c:"7", s:"7/8", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+"2978":{ n:"HEXAFLUORETO DE URÂNIO, não-físsil ou físsil com isenção", c:"7", s:"7/8", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+"2982":{ n:"MATERIAL RADIOATIVO, N.E.", c:"7", s:"7", r:"", g:null, q:"zero", tipo:"embalado", radio:true },
+
+// CLASSE 8 — CORROSIVOS
+"1719":{ n:"LÍQUIDO ALCALINO CÁUSTICO, N.E.", c:"8", s:"8", r:"80", g:"I/II/III", q:null, tipo:"embalado" },
+"1754":{ n:"ÁCIDO CLOROSSULFÔNICO (com ou sem trióxido de enxofre)", c:"8", s:"8", r:"88", g:"I", q:20, tipo:"embalado" },
+"1755":{ n:"ÁCIDO CRÔMICO, SOLUÇÃO", c:"8", s:"8", r:"80", g:null, q:100, tipo:"embalado" },
+"1759":{ n:"SÓLIDO CORROSIVO, N.E.", c:"8", s:"8", r:"80", g:"I/II/III", q:null, tipo:"embalado" },
+"1760":{ n:"LÍQUIDO CORROSIVO, N.E.", c:"8", s:"8", r:"80", g:"I/II/III", q:null, tipo:"embalado" },
+"1779":{ n:"ÁCIDO FÓRMICO", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"embalado" },
+"1789":{ n:"ÁCIDO CLORÍDRICO, SOLUÇÃO (Ácido Muriático)", c:"8", s:"8", r:"80", g:"II/III", q:100, tipo:"granel_embalado" },
+"1790":{ n:"ÁCIDO FLUORÍDRICO, SOLUÇÃO", c:"8", s:"8/6.1", r:"886", g:null, q:20, tipo:"embalado", tox:true },
+"1793":{ n:"FOSFATO ÁCIDO DE ISOPROPILA", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+"1805":{ n:"ÁCIDO FOSFÓRICO", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"granel_embalado" },
+"1813":{ n:"HIDRÓXIDO DE POTÁSSIO, SÓLIDO", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"granel_embalado" },
+"1814":{ n:"HIDRÓXIDO DE POTÁSSIO, SOLUÇÃO", c:"8", s:"8", r:"80", g:null, q:100, tipo:"granel_embalado" },
+"1823":{ n:"HIDRÓXIDO DE SÓDIO, SÓLIDO (Soda Cáustica sólida)", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"granel_embalado" },
+"1824":{ n:"HIDRÓXIDO DE SÓDIO, SOLUÇÃO (Soda Cáustica líquida)", c:"8", s:"8", r:"80", g:"II/III", q:100, tipo:"granel_embalado" },
+"1829":{ n:"TRIÓXIDO DE ENXOFRE, INIBIDO", c:"8", s:"8", r:"X88", g:"I", q:20, tipo:"embalado" },
+"1830":{ n:"ÁCIDO SULFÚRICO com mais de 51% de ácido", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"granel_embalado" },
+"1831":{ n:"ÁCIDO SULFÚRICO, FUMEGANTE (Oleum)", c:"8", s:"8/6.1", r:"X886", g:"I", q:20, tipo:"granel_embalado", tox:true },
+"1832":{ n:"ÁCIDO SULFÚRICO, RESIDUAL", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"granel" },
+"1833":{ n:"ÁCIDO SULFUROSO", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"embalado" },
+"1836":{ n:"CLORETO DE TIONILA", c:"8", s:"8", r:"X88", g:"I", q:20, tipo:"embalado" },
+"1906":{ n:"LAMAS ÁCIDAS", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"embalado" },
+"2031":{ n:"ÁCIDO NÍTRICO, exceto fumegante (até 70%)", c:"8", s:"8/5.1", r:"80", g:"I/II/III", q:20, tipo:"granel_embalado" },
+"2032":{ n:"ÁCIDO NÍTRICO, FUMEGANTE", c:"8", s:"8/5.1/6.1", r:"856", g:"I", q:20, tipo:"granel_embalado", tox:true },
+"2218":{ n:"ÁCIDO ACRÍLICO, INIBIDO", c:"8", s:"8", r:"89", g:"II", q:100, tipo:"embalado" },
+"2240":{ n:"ÁCIDO CROMOSSULFÚRICO", c:"8", s:"8", r:"88", g:"I", q:20, tipo:"embalado" },
+"2506":{ n:"BISSULFATO DE AMÔNIO", c:"8", s:"8", r:"80", g:"II", q:100, tipo:"embalado" },
+"2581":{ n:"CLORETO DE ALUMÍNIO, SOLUÇÃO", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+"2699":{ n:"ÁCIDO TRIFLUORACÉTICO", c:"8", s:"8", r:"88", g:"I", q:100, tipo:"embalado" },
+"2789":{ n:"ÁCIDO ACÉTICO, GLACIAL ou SOLUÇÃO maior que 80%", c:"8", s:"8", r:"83", g:"II", q:100, tipo:"granel_embalado" },
+"2790":{ n:"ÁCIDO ACÉTICO, SOLUÇÃO, 10-80%", c:"8", s:"8", r:"80", g:"II", q:500, tipo:"embalado" },
+"2794":{ n:"BATERIAS ELÉTRICAS ÚMIDAS, COM SOLUÇÕES ÁCIDAS", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+"2795":{ n:"BATERIAS ELÉTRICAS ÚMIDAS, COM SOLUÇÕES ALCALINAS", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+"2800":{ n:"BATERIAS ELÉTRICAS ÚMIDAS, À PROVA DE RESPINGOS", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+"3028":{ n:"BATERIAS ELÉTRICAS SECAS, COM HIDRÓXIDO DE POTÁSSIO SÓLIDO", c:"8", s:"8", r:"80", g:"III", q:500, tipo:"embalado" },
+
+// CLASSE 9 — DIVERSOS
+"1845":{ n:"DIÓXIDO DE CARBONO, SÓLIDO (GELO SECO)", c:"9", s:"9", r:"90", g:"III", q:500, tipo:"embalado" },
+"2212":{ n:"AMIANTO AZUL (crocidolita) ou MARROM (amosita, misorita)", c:"9", s:"9", r:"90", g:"II", q:50, tipo:"embalado" },
+"2315":{ n:"BIFENILAS POLICLORADAS (PCBs)", c:"9", s:"9", r:"90", g:"II", q:"zero", tipo:"embalado" },
+"2590":{ n:"AMIANTO BRANCO (crisotila, actinolito, antofilita, tremolita)", c:"9", s:"9", r:"90", g:"III", q:100, tipo:"embalado" },
+"3077":{ n:"SUBSTÂNCIAS SÓLIDAS QUE APRESENTAM RISCO PARA O MEIO AMBIENTE, N.E.", c:"9", s:"9", r:"90", g:"III", q:"zero", tipo:"embalado" },
+"3082":{ n:"SUBSTÂNCIAS LÍQUIDAS QUE APRESENTAM RISCO PARA O MEIO AMBIENTE, N.E.", c:"9", s:"9", r:"90", g:"III", q:"zero", tipo:"embalado" },
+"3090":{ n:"BATERIAS DE LÍTIO (célula de lítio-metal)", c:"9", s:"9", r:"90", g:"II", q:50, tipo:"embalado", obs:"Exige embalagens aprovadas P903/P908. Estado de carga máx. 30% para bateria danificada/defeituosa (PSE 188). Proibido carregamento junto com outra mercadoria sem segregação." },
+"3091":{ n:"BATERIAS DE LÍTIO CONTIDAS EM EQUIPAMENTOS ou EMBALADAS COM EQUIPAMENTOS (lítio-metal)", c:"9", s:"9", r:"90", g:"II", q:50, tipo:"embalado" },
+"3166":{ n:"MOTORES DE COMBUSTÃO INTERNA (inclusive instalados em máquinas ou veículos)", c:"9", s:"9", r:"90", g:null, q:null, tipo:"embalado" },
+"3171":{ n:"CADEIRA DE RODAS ELÉTRICA, com baterias", c:"9", s:"9", r:"90", g:null, q:null, tipo:"embalado" },
+"3245":{ n:"MICROORGANISMOS GENETICAMENTE MODIFICADOS", c:"9", s:"9", r:"90", g:null, q:"zero", tipo:"embalado" },
+"3480":{ n:"BATERIAS DE ÍON LÍTIO (incluindo polímero de íon lítio)", c:"9", s:"9", r:"90", g:null, q:"zero", tipo:"embalado", obs:"Qtd limitada = ZERO. Estado de carga máx. 30% para danificadas/defeituosas (PSE 376). Exige embalagens P903/P908/LP903-LP906." },
+"3481":{ n:"BATERIAS DE ÍON LÍTIO CONTIDAS EM EQUIPAMENTOS ou EMBALADAS COM EQUIPAMENTOS", c:"9", s:"9", r:"90", g:null, q:"zero", tipo:"embalado" },
+"3509":{ n:"EMBALAGENS DESCARTADAS, VAZIAS, NÃO LIMPAS", c:"9", s:"9", r:"90", g:"III", q:333, tipo:"embalado", onu3509:true, obs:"MPO-005 §14: Embalagens vazias, não limpas, para recondicionamento, reparo, reutilização, descarte ou disposição final. NÃO SE APLICA a: Classe 2 (gases), explosivos insensibilizados Cl.3/4.1, substâncias autorreagentes 4.1, radioativos Cl.7, ONU 2212/2590/2315/3432/3151/3152." },
+};
+
+// ============================================================
+// FUNÇÕES AUXILIARES
+// ============================================================
+function getClasseCss(c) {
+  const m = {"1":"cl-1","2":"cl-2","3":"cl-3","4.1":"cl-41","4.2":"cl-42","4.3":"cl-43",
+    "5.1":"cl-51","5.2":"cl-52","6.1":"cl-61","6.2":"cl-62","7":"cl-7","8":"cl-8","9":"cl-9"};
+  return m[c] || "cl-9";
+}
+function classeNome(c) {
+  const m = {"1":"Explosivos","2":"Gases","3":"Líq. Inflamáveis","4.1":"Sól. Inflamáveis",
+    "4.2":"Comb. Espontânea","4.3":"Reage c/ Água","5.1":"Oxidantes","5.2":"Peróxidos Orgânicos",
+    "6.1":"Tóxicos","6.2":"Infecciosos","7":"Radioativos","8":"Corrosivos","9":"Diversos"};
+  return m[c] || "Classe " + c;
+}
+const isGranel = p => p.tipo === "granel" || p.tipo === "granel_embalado";
+
+function tipoTransp(p) {
+  if (p.tipo === "granel")         return { fr:false, gr:true,  label:"🚛 SOMENTE GRANEL", cor:"#e67e22" };
+  if (p.tipo === "embalado")       return { fr:true,  gr:false, label:"📦 SOMENTE FRACIONADO", cor:"#0056b3" };
+  return                                  { fr:true,  gr:true,  label:"📦🚛 FRACIONADO E GRANEL", cor:"#1a7a2e" };
+}
+
+// ============================================================
+// BUSCA
+// ============================================================
+function buscar() {
+  const onu = document.getElementById('inputONU').value.trim();
+  const nome = document.getElementById('inputNome').value.trim().toLowerCase();
+  if (onu.length >= 3) {
+    const p = DB[onu.padStart(4,'0')];
+    if (p) { selecionarProduto(onu.padStart(4,'0')); return; }
+  }
+  if (nome.length >= 3) {
+    const resultados = Object.entries(DB).filter(([,p]) =>
+      p.n.toLowerCase().includes(nome));
+    if (resultados.length === 1) { selecionarProduto(resultados[0][0]); return; }
+    if (resultados.length > 1) { mostrarLista(resultados); return; }
+  }
+  document.getElementById('resultado').innerHTML =
+    '<div class="card-ajuda"><h3>⚠️ Produto não encontrado</h3><p>Verifique o número ONU ou tente outro nome. O banco contém ' + Object.keys(DB).length + ' produtos.</p></div>';
+}
+
+function mostrarLista(resultados) {
+  const lista = document.getElementById('listaResultados');
+  lista.innerHTML = resultados.slice(0,20).map(([k,p]) =>
+    `<div class="item-resultado" onclick="selecionarProduto('${k}')">
+      <strong>${k}</strong> — ${p.n.substring(0,60)}${p.n.length > 60 ? '…' : ''}
+      <span style="font-size:10px;color:#888;margin-left:5px;">Cl.${p.c}</span>
+    </div>`).join('') + (resultados.length > 20 ? `<div style="padding:6px 12px;font-size:11px;color:#888;">+${resultados.length-20} resultados. Refine a busca.</div>` : '');
+  lista.classList.add('visivel');
+}
+
+function selecionarProduto(num) {
+  document.getElementById('inputONU').value = num;
+  document.getElementById('inputNome').value = '';
+  document.getElementById('listaResultados').classList.remove('visivel');
+  const p = DB[num];
+  if (!p) return;
+  document.getElementById('resultado').innerHTML = renderProduto(num, p);
+  setTimeout(() => {
+    const s = document.querySelector('.secao-corpo');
+    if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
+    window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
+  }, 50);
+}
+
+function toggleSecao(el) {
+  const c = el.nextElementSibling;
+  const ch = el.querySelector('.chevron');
+  const aberto = c.classList.toggle('aberto');
+  ch.classList.toggle('open', aberto);
+}
+
+// Enter
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('inputONU').addEventListener('keydown', e => { if (e.key==='Enter') buscar(); });
+  document.getElementById('inputNome').addEventListener('keydown', e => { if (e.key==='Enter') buscar(); });
+});
+
+// ============================================================
+// CONSTRUTORES BASE
+// ============================================================
+function secao(icone, titulo, corpo, status) {
+  const st = {ok:'<span class="secao-status status-ok">✓ Verificar</span>',
+    alerta:'<span class="secao-status status-alerta">⚠ Atenção</span>',
+    critico:'<span class="secao-status status-critico">🔴 Crítico</span>'};
+  return `<div class="secao">
+    <div class="secao-header" onclick="toggleSecao(this)">
+      <span class="secao-icone">${icone}</span>
+      <span class="secao-titulo">${titulo}</span>
+      ${st[status]||''}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="secao-corpo">${corpo}</div>
+  </div>`;
+}
+
+function item(ico, principal, detalhe, multa) {
+  return `<div class="item-check">
+    <span class="check-icon">${ico}</span>
+    <div>
+      <div class="check-principal">${principal}</div>
+      ${detalhe ? `<div class="check-detalhe">${detalhe}</div>` : ''}
+      ${multa  ? `<div class="check-multa">⚖️ Infração: ${multa}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function tag(tipo, texto) {
+  return `<span class="tag tag-${tipo}">${texto}</span>`;
+}
+
+// ============================================================
+// RENDER PRINCIPAL
+// ============================================================
+function renderProduto(num, p) {
+  const tt = tipoTransp(p);
+  const temQL = p.q !== "zero" && p.q != null && p.q > 0;
+  const qlimZero = p.q === "zero";
+
+  let html = `<div class="card-produto">`;
+
+  // Cabeçalho
+  html += `<div class="card-header">
+    <div class="onu-badge">ONU<br><span>${num}</span></div>`;
+  if (p.r) html += `<div class="nr-painel"><span class="nr-label">Nº RISCO</span><span class="nr-num">${p.r}</span><span class="nr-label">NUM. ONU</span></div>`;
+  html += `<div class="prod-info">
+    <div class="prod-nome">${p.n}</div>
+    <div class="prod-meta">Classe: <strong>${p.c}</strong> — ${classeNome(p.c)}
+      ${p.s && p.s !== p.c ? ' | Sub: '+p.s : ''}
+      ${p.g ? ' | GE: '+p.g : ''}
+      ${temQL ? ` | <span style="color:#a0e8a0;font-weight:700;">Qt.Ltd: ${p.q} kg</span>` : ''}
+      ${qlimZero ? ' | <span style="color:#ffaaaa;font-weight:700;">Sem Qt.Ltd</span>' : ''}
+    </div>
+  </div>
+  <div class="classe-badge ${getClasseCss(p.c)}">${p.c}</div>
+  </div>`;
+
+  // Badge tipo de transporte
+  html += `<div class="tipo-badge" style="background:${tt.cor};">${tt.label}</div>`;
+
+  // Alertas especiais
+  if (p.obs) html += `<div class="alert-card" style="background:#f0f7ff;border-color:#0056b3;color:#003580;"><strong>ℹ️</strong> ${p.obs}</div>`;
+  if (p.radio) html += `<div class="alert-card" style="background:#fff9e6;border-color:#f39c12;color:#7a5800;"><strong>☢️ RADIOATIVO</strong> — Exige autorização CNEN. Verificar IT e categoria do rótulo.</div>`;
+  if (p.infec) html += `<div class="alert-card" style="background:#ffe8e8;border-color:#c0392b;color:#7a1c1c;"><strong>☣️ INFECTANTE</strong> — Embalagem tripla obrigatória. Categoria A (máxima restrição) ou B (requisitos reduzidos).</div>`;
+  if (p.tox)   html += `<div class="alert-card" style="background:#f9e8ff;border-color:#8e44ad;color:#5b0080;"><strong>☠️ TÓXICO</strong> — Risco de intoxicação. Verificar EPIs específicos abaixo.</div>`;
+  if (p.c==="1") html += `<div class="alert-card" style="background:#fff0e6;border-color:#e67e22;color:#7a3800;"><strong>💥 EXPLOSIVO</strong> — Guia de Tráfego do Exército obrigatória.</div>`;
+
+  // ONU 3509 — tabela de dispensas
+  if (p.onu3509) {
+    html += `<div style="background:#e8f5e9;border:2px solid #1a7a2e;border-radius:8px;padding:10px 14px;margin:8px 12px;font-size:12px;">
+      <div style="font-weight:900;color:#1a5c22;font-size:13px;margin-bottom:6px;">♻️ ONU 3509 — DISPENSAS ESPECÍFICAS (MPO-005 §14)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div><div style="font-weight:700;color:#c0392b;margin-bottom:3px;">❌ DISPENSADO:</div>
+          <div style="font-size:11px;line-height:1.9;color:#555;">• Marcação homologação/Inmetro<br>• Quantidade no documento<br>• EPI (conjunto completo)<br>• ESE (equip. emergência)<br>• CETPP / MOPP do condutor</div>
+        </div>
+        <div><div style="font-weight:700;color:#1a7a2e;margin-bottom:3px;">✅ EXIGIDO:</div>
+          <div style="font-size:11px;line-height:1.9;color:#333;">• Nº ONU do produto original no volume<br>• Nome de embarque no volume<br>• Rótulo de risco no volume<br>• TMO (calça + camisa + calçado)<br>• Documento de transporte<br>• Extintor de incêndio<br>• Sinalização no veículo<br>• Proibições (alimentos, animais, fumar)</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  html += renderSecoes(num, p, tt, temQL, qlimZero);
+  html += renderMultas();
+  html += `</div>`;
+  return html;
+}
+
+function renderSecoes(num, p, tt, temQL, qlimZero) {
+  return [
+    renderCondutor(num, p),
+    renderVeiculoSinalizacao(num, p, tt),
+    renderCargaEmbalagem(num, p, tt),
+    renderQuantLimitada(num, p, temQL, qlimZero),
+    renderDocumentacao(num, p, tt),
+    p.onu3509 ? renderEPIDispensado3509() : renderEPIs(num, p),
+    renderEquipEmerg(num, p, tt),
+    renderProibicoes(p),
+    tt.gr ? renderCaracTecnicas(p) : '',
+    renderEmergencia(p, num)
+  ].join('');
+}
+
+// ============================================================
+// SEÇÃO 1 — CONDUTOR
+// ============================================================
+function renderCondutor(num, p) {
+  let c = '';
+  if (p.onu3509) {
+    c += item('🎓','CETPP / MOPP',`${tag('dispensado','DISPENSADO — ONU 3509')} MPO-005 §14: curso não exigido para embalagens vazias não limpas.`,null);
+  } else {
+    c += item('🎓',`CETPP — Curso Específico de Transporte de PP para Classe ${p.c}`,
+      `${tag('obrigatorio','OBRIGATÓRIO')} CNH com CETPP válido compatível com a <strong>Classe ${p.c} — ${classeNome(p.c)}</strong>. O certificado é por classe de risco: condutor de Classe 3 não pode usar CETPP de Classe 2. Verificar validade e compatibilidade.`,
+      '2º Grupo R$1.400');
+  }
+  c += item('👕','TMO — Traje Mínimo Obrigatório',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 22 + MPO-005 §10 — Condutor E auxiliares: <strong>calça comprida + camisa/camiseta (manga curta ou longa) + calçado fechado</strong>. Carona (se admitido em Qt. Limitada) também usa TMO.`,
+    '4º Grupo R$600');
+  if (p.infec) c += item('☣️','Treinamento de biossegurança (ANVISA/MS)',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Além do CETPP, condutor de Classe 6.2 deve ter treinamento em biossegurança conforme ANVISA e Ministério da Saúde.`,null);
+  if (p.radio) c += item('☢️','Autorização CNEN + dosímetro individual',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Material radioativo: autorização CNEN obrigatória. Dosímetro pessoal conforme IT (índice de transporte) do pacote.`,null);
+  if (p.c==='1') c += item('🪖','Credencial Exército / PF para explosivos',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Credencial de motorista de explosivos emitida pelo Exército Brasileiro ou PF.`,null);
+  return secao('👤','CONDUTOR', c, 'alerta');
+}
+
+// ============================================================
+// SEÇÃO 2 — VEÍCULO + SINALIZAÇÃO
+// ============================================================
+function getSinalizacao(p) {
+  const rotMap = {
+    '1':['Rótulo Classe 1 (fundo laranja/branco, bomba) + letra do subgrupo (ex: 1.4S)'],
+    '2':['Rótulo Cl.2.1 (fundo vermelho, chama) — se inflamável','Rótulo Cl.2.2 (fundo verde, botijão) — se não-inflamável','Rótulo Cl.2.3 (fundo branco, caveira) — se tóxico'],
+    '3':['Rótulo Classe 3 (fundo vermelho, chama)'],
+    '4.1':['Rótulo Classe 4.1 (fundo branco c/ listras vermelhas, chama)'],
+    '4.2':['Rótulo Classe 4.2 (fundo vermelho/branco, chama sem risca)'],
+    '4.3':['Rótulo Classe 4.3 (fundo azul, chama sobre onda de água)'],
+    '5.1':['Rótulo Classe 5.1 (fundo amarelo, chama sobre círculo)'],
+    '5.2':['Rótulo Classe 5.2 (metade vermelho/metade amarelo, chama sobre círculo)'],
+    '6.1':['Rótulo Classe 6.1 (fundo branco, caveira e ossos cruzados)'],
+    '6.2':['Rótulo Classe 6.2 (fundo branco, círculo de biorrisco)'],
+    '7':['Rótulo Cat. I-Branco, II-Amarelo ou III-Amarelo conforme IT do pacote'],
+    '8':['Rótulo Classe 8 (fundo preto/branco, líquido corroendo metal e mão)'],
+    '9':['Rótulo Classe 9 (fundo branco, listras pretas verticais)']
+  };
+  const rotulos = rotMap[p.c] || rotMap['9'];
+  if (p.s && p.s !== p.c) {
+    const sub = p.s.split('/');
+    sub.forEach(s => { if (rotMap[s] && s !== p.c) rotulos.push(...rotMap[s].map(r => r + ' <em>(risco subsidiário)</em>')); });
+  }
+  const simb = [];
+  if (p.tox && p.s && p.s.includes('6.1')) simb.push('Rótulo de risco subsidiário Classe 6.1 (tóxico)');
+  if (p.infec) simb.push('Símbolo de biorrisco (círculo com 3 setores)');
+  if (p.radio) simb.push('Símbolo de radioatividade (trifólio) + IT e categoria no rótulo');
+  if (p.c==='4.3') simb.push('Símbolo W (proibição de contato com água)');
+  if (['3077','3082','3090','3480','3481','3091'].includes(p.n?.substring(0,4))) simb.push('Símbolo de poluente do meio ambiente (peixe + árvore) se constar nas IC');
+  return { rotulos, simb };
+}
+
+function renderVeiculoSinalizacao(num, p, tt) {
+  let c = `<div class="sub-titulo">TIPO DE VEÍCULO</div>`;
+  c += item('🚛','Categoria: carga, misto ou especial',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 12 — Somente veículos de carga, mistos ou especiais. <strong>PROIBIDO em motocicletas, motonetas ou ciclomotores.</strong> Se misto (Van, pick-up): compartimento de carga estanque e separado dos ocupantes.`,
+    '2º Grupo R$1.400');
+  c += item('🧼','Exterior do veículo sem contaminação',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 7º — Verificar laterais, rodas, parte inferior e conexões. Respingos ou resíduos do produto no exterior são infração.`,'3º Grupo R$1.000');
+
+  if (tt.gr) {
+    c += `<div class="sub-titulo">GRANEL — EXIGÊNCIAS ADICIONAIS NO VEÍCULO</div>`;
+    c += item('📋','CIV — Certificado de Inspeção Veicular (original)',
+      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Art. 11 — Original (não cópia), dentro da validade, dados compatíveis com o CRLV. Emitido por OIA acreditado pelo Inmetro.`,
+      '2º Grupo R$1.400 (vencido/ausente) | 3º Grupo R$1.000 (sem original)');
+    c += item('🏭','CTPP / CIPP — Certificado do equipamento (tanque/cisterna)',
+      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Art. 11 — CTPP: certifica a fabricação do tanque. CIPP: inspeção periódica. O produto <strong>${p.n.split(' ')[0]}</strong> deve constar no certificado. Produto divergente = infração grave.`,
+      '2º Grupo R$1.400');
+    c += item('⚙️','Válvulas, bocas de visita e manômetros',
+      `${tag('granel','GRANEL')} ${tag('obrigatorio','VERIFICAR')} Bocas fechadas e vedadas, válvulas de carga/descarga sem vazamento, manômetros operacionais. Aterramento elétrico (se inflamável ou combustível).`,'3º Grupo R$1.000');
+  }
+
+  c += `<div class="sub-titulo">SINALIZAÇÃO DO VEÍCULO</div>`;
+  const painel = p.r
+    ? `Número de Risco <strong>${p.r}</strong> no topo | Número ONU <strong>${num}</strong> na base`
+    : `Número ONU <strong>${num}</strong> — verificar IC para número de risco específico`;
+  c += item('🟧','Painel de segurança laranja (frontal e traseiro)',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 6º — Painéis refletivos laranja afixados na parte frontal e traseira do veículo. ${painel}. Altura mínima dos algarismos: 100 mm, traço mínimo 15 mm. Para granel com vários compartimentos: painel individual por produto. <strong>Após descarga: retirar ou cobrir.</strong>`,
+    '2º Grupo R$1.400 (ausente/incorreto) | 4º Grupo R$600 (não retirou após descarga)');
+
+  const sin = getSinalizacao(p);
+  let rotTxt = sin.rotulos.map(r => `<div>✅ ${r}</div>`).join('');
+  c += item('🏷️','Rótulos de risco — laterais da carroceria (mín. 100×100 mm)',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 6º — Afixados nas laterais da carroceria ou nos volumes visíveis de fora:<br>${rotTxt}`,
+    '2º Grupo R$1.400');
+
+  if (sin.simb.length) {
+    let simbTxt = sin.simb.map(s => `<div>🔶 ${s}</div>`).join('');
+    c += item('⭐','Símbolos especiais',`${tag('obrigatorio','VERIFICAR')} ${simbTxt}`,null);
+  }
+  c += item('📐','Rótulos de manuseio nos volumes (fracionado)',
+    tt.fr
+      ? `${tag('obrigatorio','VERIFICAR')} Setas de posicionamento ("este lado para cima"), símbolos de proteção contra chuva e restrições de empilhamento quando exigidos pelas IC.`
+      : `${tag('dispensado','N/A')} Somente granel.`,null);
+
+  return secao('🚛','VEÍCULO E SINALIZAÇÃO', c, 'critico');
+}
+
+// ============================================================
+// SEÇÃO 3 — CARGA, EMBALAGEM E INCOMPATIBILIDADES
+// ============================================================
+function getIncompativeis(c) {
+  const t = {
+    '1': ['Classe 2 (gases)','Classe 3 (líquidos inflamáveis)','Classe 4 (sólidos inflamáveis)','Classe 5.1 (oxidantes)','Classe 5.2 (peróxidos orgânicos)','Classe 6 (tóxicos)','Classe 8 (corrosivos)'],
+    '2': ['Classe 1 (explosivos)','Classe 5.1 (oxidantes) — se gás inflamável 2.1','Classe 5.2 (peróxidos orgânicos)'],
+    '3': ['Classe 1 (explosivos)','Classe 5.1 (oxidantes) — risco de ignição espontânea','Classe 5.2 (peróxidos orgânicos) — risco de ignição espontânea','Classe 4.2 (substâncias espontaneamente inflamáveis)'],
+    '4.1':['Classe 1 (explosivos)','Classe 5.1 (oxidantes)','Classe 5.2 (peróxidos orgânicos)'],
+    '4.2':['Classe 1 (explosivos)','Classe 3 (líquidos inflamáveis)','Classe 5.1 (oxidantes)','Classe 5.2 (peróxidos orgânicos)'],
+    '4.3':['Classe 1 (explosivos)','Classe 3 (líquidos inflamáveis)','Classe 5.1 (oxidantes)','Classe 8 (corrosivos aquosos)','UMIDADE / CHUVA — reação violenta com água'],
+    '5.1':['Classe 1 (explosivos)','Classe 2.1 (gases inflamáveis)','Classe 3 (líquidos inflamáveis)','Classe 4.1 (sólidos inflamáveis)','Classe 4.2 (espontaneamente inflamáveis)','Classe 4.3 (reagem com água)','Qualquer material orgânico combustível'],
+    '5.2':['Classe 1 (explosivos)','Classe 2.1 (gases inflamáveis)','Classe 3 (líquidos inflamáveis)','Classe 5.1 (oxidantes)','Classe 4 (sólidos inflamáveis)'],
+    '6.1':['Classe 1 (explosivos)','Alimentos, medicamentos e embalagens para uso humano (mesmo compartimento)'],
+    '6.2':['Todos os demais PP sem segregação adequada','Alimentos e medicamentos no mesmo compartimento'],
+    '7': ['Classe 1 (explosivos)','Classe 5.1 (oxidantes)','Requer distâncias de separação conforme IT (índice de transporte)'],
+    '8': ['Classe 1 (explosivos)','Classe 4.3 (se corrosivo aquoso — emite gás)','Classe 5.1 (oxidantes) — risco de reação exotérmica'],
+    '9': ['Verificar provisão especial (PE) do produto na Relação de PP']
+  };
+  return t[c] || t['9'];
+}
+
+function getEmbalagem(p) {
+  const tipos = {
+    '1':'Embalagens aprovadas para explosivos: caixas de madeira reforçada, tambores metálicos — conforme certificação do Exército Brasileiro. Usar embalagem original do fabricante.',
+    '2':'Cilindros de aço, botijões ou recipientes de pressão aprovados pelo Inmetro. Válvulas protegidas por tampão. Para líquidos criogênicos: vasos de Dewar ou contentores ISO.',
+    '3':'Jerricans metálicos ou de polietileno aprovados UN, tambores metálicos ou plásticos com marcação UN. GE I: embalagem de aço inoxidável ou alumínio.',
+    '4.1':'Tambores metálicos, caixas de madeira reforçada, sacos aprovados com marcação UN.',
+    '4.2':'Tambores metálicos HERMÉTICOS impermeáveis ao ar. Para substâncias que reagem com O₂: atmosfera inerte no interior.',
+    '4.3':'Tambores metálicos HERMÉTICOS, impermeáveis à umidade. Vedação absoluta. A embalagem deve suportar pressão interna do gás gerado.',
+    '5.1':'Embalagens de polietileno (PEAD) ou vidro. NÃO usar embalagens metálicas que possam ser oxidadas. Verificar compatibilidade do material com o oxidante.',
+    '5.2':'Embalagens NÃO metálicas (polietileno ou vidro aprovados). Alguns exigem controle de temperatura. Verificar necessidade de flegmatizante.',
+    '6.1':'Tambores metálicos ou plásticos aprovados, jerricans. GE I: embalagem mais resistente. Material da embalagem não pode reagir com o produto tóxico.',
+    '6.2':'EMBALAGEM TRIPLA OBRIGATÓRIA: ① embalagem primária estanque + ② embalagem secundária com absorvente (suficiente para todo o líquido) + ③ embalagem externa rígida.',
+    '7':'Embalagem aprovada pela CNEN conforme modelo certificado: industrial, tipo A, tipo B(U), tipo B(M) ou tipo C — conforme IT e atividade.',
+    '8':'Jerricans ou tambores de polietileno PEAD, PVC, polipropileno ou vidro para ácidos. Bases: PEAD ou vidro. NÃO usar alumínio para ácidos nem aço carbono sem revestimento para ácidos concentrados.',
+    '9':'Embalagens aprovadas UN conforme IC. Verificar provisão especial do produto (coluna 7 da Relação de PP).'
+  };
+  const cond = {
+    '1':'Temperatura ambiente (máx. 50°C). Afastado de calor/ignição. Segregar por grupo de compatibilidade. Não empilhar além do limite.',
+    '2':'Cilindros VERTICAIS (válvula para cima), exceto se projetado para horizontal. Presos e imobilizados. Proteger válvulas contra danos. Longe de fontes de calor.',
+    '3':'Bocas para CIMA. Proteger de calor direto (máx. 40°C). Ventilação para dissipar vapores. Calços para evitar rolamento de tambores.',
+    '4.1':'Afastado de fontes de calor e ignição. Armazenamento seco. Sem contato com substâncias incompatíveis.',
+    '4.2':'Área refrigerada ou ventilada. Longe de ignição. Embalagens fechadas hermeticamente. Proibido contato com ar para algumas substâncias.',
+    '4.3':'ABSOLUTAMENTE SECO. Proteger de umidade, chuva e condensação. Verificar vedação antes de carregar. NÃO transportar com embalagem danificada em chuva.',
+    '5.1':'Longe de qualquer material combustível/inflamável. Embalagens fechadas. Temperatura ambiente. Verificar ausência de vazamento.',
+    '5.2':'Controle de temperatura obrigatório para muitos. Verificar Temperatura de Controle (TC) e Emergência (TE) na FDS. Longe de calor e ignição.',
+    '6.1':'Embalagens fechadas e rotuladas. Afastado de alimentos e medicamentos. Verificar integridade antes do carregamento.',
+    '6.2':'Temperatura controlada se exigido. Embalagem primária estanque. Absorvente íntegro. Proteger de impactos.',
+    '7':'Distâncias de separação conforme IT. Manter afastado de pessoas. Nunca manusear sem avaliação do IT.',
+    '8':'Bocas para cima. Proteger de impactos. Verificar hermetismo. Longe de materiais incompatíveis.',
+    '9':'Conforme instrução específica do produto (FDS e Ficha de Emergência).'
+  };
+  return { tipo: tipos[p.c] || tipos['9'], cond: cond[p.c] || cond['9'] };
+}
+
+function renderCargaEmbalagem(num, p, tt) {
+  let c = '';
+  if (tt.fr) {
+    const emb = getEmbalagem(p);
+    c += `<div class="sub-titulo">EMBALAGEM ADEQUADA PARA ESTE ONU</div>`;
+    c += item('📦','Tipo de embalagem aprovada',
+      `${tag('obrigatorio','OBRIGATÓRIO')} Art. 14 — ${emb.tipo} A embalagem deve ter marcação UN em relevo ou etiqueta e selo de conformidade do organismo certificador.`,
+      '2º Grupo R$1.400 (não aprovada) | 3º Grupo R$1.000 (deteriorada/violada)');
+    if (p.g) c += item('🔢',`Grupo de Embalagem: ${p.g}`,
+      `${tag('obrigatorio','VERIFICAR')} GE ${p.g}: ${p.g.includes('I') && !p.g.includes('II') && !p.g.includes('III') ? 'Alto perigo — embalagem mais resistente.' : p.g.includes('III') && !p.g.includes('I') && !p.g.includes('II') ? 'Baixo perigo — menos restritivo.' : 'Médio perigo ou múltiplos grupos — verificar variante.'}`,null);
+    c += item('🏷️','Identificação obrigatória em cada volume',
+      `${tag('obrigatorio','OBRIGATÓRIO')} Art. 15 — Cada volume deve ter: ① ONU ${num} (ex: UN ${num}), ② nome de embarque em MAIÚSCULAS, ③ rótulo de risco, ④ GE ${p.g||'(N/A)'}. Sobreembalagem: escrever "SOBREEMBALAGEM" em letras ≥12mm.`,
+      '2º Grupo R$1.400');
+
+    c += `<div class="sub-titulo">ACONDICIONAMENTO E ESTIVA</div>`;
+    c += item('📐','Como acondicionar e estivar',
+      `${tag('obrigatorio','OBRIGATÓRIO')} ${emb.cond} Volumes não podem se mover, cair ou tombar. Bocas dos líquidos para cima. Usar calços e cintas.`,
+      '3º Grupo R$1.000');
+    if (p.c === '6.2') c += item('☣️','Embalagem tripla obrigatória',
+      `${tag('obrigatorio','OBRIGATÓRIO')} Infectantes: ① primária estanque + ② secundária com absorvente (para todo o líquido) + ③ externa rígida. Temperatura controlada se exigido.`,null);
+  }
+
+  c += `<div class="sub-titulo">ONU INCOMPATÍVEIS — NÃO transportar juntos com ONU ${num}</div>`;
+  c += `<div class="incompat-box"><div style="font-weight:700;color:#c0392b;margin-bottom:5px;">⚠️ Classe ${p.c} é incompatível com (Art. 17 II):</div>`;
+  getIncompativeis(p.c).forEach(i => { c += `<div class="incompat-item">${i}</div>`; });
+  c += `<div style="font-size:11px;color:#888;margin-top:5px;">Usar tabela de segregação das IC para verificar pares específicos. Infração: 2º Grupo R$1.400</div></div>`;
+
+  if (p.c==='5.1' || p.c==='5.2') c += item('🔴','Segregação rigorosa — oxidante/peróxido',
+    `${tag('atencao','ATENÇÃO')} Classes 5.1 e 5.2 reagem violentamente com inflamáveis e materiais orgânicos. Verificar se não há combustíveis no mesmo compartimento.`,null);
+  if (p.c==='4.3') c += item('💧','PROIBIDO contato com água',
+    `${tag('atencao','ATENÇÃO')} Embalagem hermeticamente fechada. NÃO transportar com embalagem danificada em chuva.`,null);
+  c += item('🥩','PROIBIDO junto com alimentos, medicamentos ou animais',
+    `${tag('obrigatorio','PROIBIDO')} Art. 17 III e V — Mesmo compartimento. Exceção: cofre de carga estanque (Art. 18).`,'2º Grupo R$1.400');
+  return secao('📦','CARGA, EMBALAGEM E INCOMPATIBILIDADES', c, 'alerta');
+}
+
+// ============================================================
+// SEÇÃO 4 — QUANTIDADE LIMITADA
+// ============================================================
+function renderQuantLimitada(num, p, temQL, qlimZero) {
+  let c = '';
+  if (qlimZero) {
+    c = `<div class="ql-box" style="border-color:#c0392b;background:#fff0f0;">
+      <div style="font-weight:900;color:#c0392b;font-size:14px;">❌ SEM QUANTIDADE LIMITADA — Coluna 8 = ZERO</div>
+      <div style="font-size:12px;margin-top:5px;color:#555;">Este produto <strong>não possui</strong> quantidade limitada. Todos os requisitos se aplicam integralmente independente da quantidade transportada.</div>
+    </div>`;
+  } else if (temQL) {
+    c = `<div class="ql-box" style="border-color:#1a7a2e;background:#f0fff4;">
+      <div style="font-weight:900;color:#1a5c22;font-size:15px;">✅ QUANTIDADE LIMITADA: <span style="font-size:20px;">${p.q} kg</span> por embalagem</div>
+      <div style="font-size:12px;margin:5px 0;"><strong>Condição geral (MPO-005 §13):</strong> O documento de transporte DEVE conter a expressão <code style="background:#e8f5e9;padding:1px 5px;border-radius:3px;">"quantidade limitada"</code> ou <code style="background:#e8f5e9;padding:1px 5px;border-radius:3px;">"QUANT. LTDA"</code> — sem isso, nenhuma dispensa se aplica.</div>
+      <div class="ql-grid">
+        <div><div class="ql-col-titulo" style="color:#c0392b;">❌ DISPENSADO:</div>
+          <div class="ql-item">• CETPP / MOPP do condutor<br>• Painéis laranja e rótulos no veículo<br>• Equipamentos de emergência (ESE)<br>• EPIs (conjunto completo)<br>• Ficha de emergência / envelope<br>• Marcação UN nas embalagens internas (se ≤ col.9)</div>
+        </div>
+        <div><div class="ql-col-titulo" style="color:#1a7a2e;">✅ PERMANECE OBRIGATÓRIO:</div>
+          <div class="ql-item">• Documento de transporte (simplificado)<br>• TMO para todos a bordo<br>• Extintor de incêndio do veículo<br>• Proibições (alimentos, animais, fumar)<br>• Precauções de manuseio / estiva<br>• Símbolo "Q" (losango) nos volumes<br>• Embalagens aprovadas UN</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;background:#d4f0d4;border-radius:5px;padding:5px 8px;font-size:11px;color:#1a5c22;">
+        📦 <strong>Quantidade limitada por embalagem interna:</strong> volume não pode exceder 30 kg. Símbolo Q obrigatório. Sinalização do veículo dispensada se total ≤ 1.000 kg (MPO-005 §24).
+      </div>
+    </div>`;
+  } else {
+    c = `<div class="ql-box" style="border-color:#0056b3;background:#f0f7ff;">
+      <div style="font-weight:700;color:#003580;">ℹ️ Quantidade limitada não especificada para este produto</div>
+      <div style="font-size:12px;margin-top:4px;">Verificar coluna 8 da Relação de Produtos Perigosos na Res. ANTT 5.998/22.</div>
+    </div>`;
+  }
+  return secao('📊','QUANTIDADE LIMITADA', c, 'ok');
+}
+
+// ============================================================
+// SEÇÃO 5 — DOCUMENTAÇÃO
+// ============================================================
+function renderDocumentacao(num, p, tt) {
+  let c = `<div class="sub-titulo">DOCUMENTOS OBRIGATÓRIOS NO VEÍCULO</div>`;
+  c += item('📄','DTPP — Documento para o Transporte de Produtos Perigosos',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 23 II — Pode ser NF-e, CT-e ou documento avulso. Produtos perigosos devem vir listados PRIMEIRO quando houver produtos não-perigosos.`,
+    '2º Grupo R$1.400 (sem portar) | 3º Grupo R$1.000 (ilegível ou incorreto)');
+
+  // Sequência obrigatória
+  const nome = p.n.split('(')[0].split(',')[0].trim().toUpperCase();
+  const sub   = p.s && p.s !== p.c ? `(${p.s})` : '';
+  const ge    = p.g ? `GE ${p.g}` : '';
+  const ex    = `ONU ${num} ${nome} ${p.c} ${sub} ${ge} ___ kg`.replace(/\s+/g,' ').trim();
+  c += `<div class="seq-doc">
+    <div style="font-weight:900;color:#003580;font-size:13px;margin-bottom:6px;">📋 SEQUÊNCIA OBRIGATÓRIA NA DESCRIÇÃO DO PRODUTO (MPO-005 §5.4.1)</div>
+    <div class="seq-linha"><span class="seq-num" style="background:#003580;">1</span><div class="seq-texto"><strong>Número ONU</strong> — precedido de "ONU" ou "UN" <span style="color:#e67e22;">→ <code>ONU ${num}</code></span></div></div>
+    <div class="seq-linha"><span class="seq-num" style="background:#003580;">2</span><div class="seq-texto"><strong>Nome Apropriado para Embarque</strong> — em MAIÚSCULAS, em português <span style="color:#e67e22;">→ <code>${nome}</code></span></div></div>
+    <div class="seq-linha"><span class="seq-num" style="background:#003580;">3</span><div class="seq-texto"><strong>Classe/Subclasse Principal</strong> — imediatamente após o nome${p.c==='1' ? ' + letra do Grupo de Compatibilidade' : ''} <span style="color:#e67e22;">→ <code>${p.c}</code></span></div></div>
+    <div class="seq-linha"><span class="seq-num" style="background:${sub?'#1a7a2e':'#aaa'};">4</span><div class="seq-texto"><strong>Risco(s) Subsidiário(s)</strong> — entre parênteses, se houver <span style="color:${sub?'#e67e22':'#999'};">${sub ? `→ <code>${sub}</code>` : '→ este produto não possui'}</span></div></div>
+    <div class="seq-linha"><span class="seq-num" style="background:${ge?'#1a7a2e':'#aaa'};">5</span><div class="seq-texto"><strong>Grupo de Embalagem</strong> — algarismo romano, precedido de "GE" <span style="color:${ge?'#e67e22':'#999'};">${ge ? `→ <code>${ge}</code>` : '→ gases não possuem GE'}</span></div></div>
+    <div class="seq-linha"><span class="seq-num" style="background:#e67e22;">6</span><div class="seq-texto"><strong>Quantidade total</strong> — em kg ou L, pode ficar em campo próprio do doc. fiscal</div></div>
+    <div class="seq-exemplo"><strong>✅ Exemplo para este ONU:</strong><br><code>${ex}</code></div>
+    <div style="font-size:11px;color:#555;margin-top:6px;line-height:1.6;">⚠️ Obrigatório no documento: <strong>nome, endereço e CNPJ/CPF do expedidor e do destinatário + data</strong>${p.infec ? '<br>⚠️ Para infectantes: endereço completo + nome e telefone do responsável.' : ''}</div>
+  </div>`;
+
+  c += item('📑','Ficha de Emergência + Envelope de Emergências',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Art. 23 III — Ficha de Emergência: primeiros-socorros, riscos, medidas de vazamento e combate a incêndio. Envelope: documentos em embalagem resistente à água para socorro. Podem constar no próprio documento de transporte.`,
+    '4º Grupo R$600');
+
+  if (tt.gr) {
+    c += `<div class="sub-titulo">GRANEL — DOCUMENTOS ADICIONAIS</div>`;
+    c += item('📋','CTPP ou CIPP — original, dentro da validade',
+      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Original (não cópia). Produto <strong>${p.n.split(' ')[0]}</strong> deve constar.`,
+      '2º Grupo R$1.400 (vencido/ausente) | 3º Grupo R$1.000 (sem original)');
+    c += item('📋','CIV — Certificado de Inspeção Veicular original',
+      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Original, sem rasuras, dados compatíveis com CRLV.`,
+      '2º Grupo R$1.400 | 3º Grupo R$1.000');
+  }
+  if (p.c==='1') c += item('🪖','Guia de Tráfego / Licença Exército ou PF',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Explosivos de uso civil: Guia de Tráfego do Exército Brasileiro. Sem este documento o transporte é irregular.`,null);
+  if (p.radio) c += item('☢️','Autorização CNEN + documentos do pacote',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Ficha de monitoração da carga + declaração do expedidor de material radioativo (CNEN NN 5.01).`,null);
+  if (p.infec) c += item('☣️','Documentação ANVISA / Ministério da Saúde',
+    `${tag('obrigatorio','OBRIGATÓRIO')} Categoria A (ONU 2814/2900): máxima restrição. Categoria B (ONU 3373): requisitos reduzidos.`,null);
+  return secao('📄','DOCUMENTAÇÃO', c, 'alerta');
+}
+
+// ============================================================
+// SEÇÃO 6 — EPIs
+// ============================================================
+function getEPIs(p) {
+  const base = [
+    {ico:'🥽',n:'Óculos de proteção (tipo goggle)',d:'Vedação total ao redor dos olhos. Protege contra respingos e vapores. Óculos comuns NÃO substituem.',crit:false},
+    {ico:'🧤',n:'Luvas de proteção química',d:'Material específico por classe (ver abaixo). Devem cobrir o punho.',crit:false},
+    {ico:'👟',n:'Calçado fechado antiderrapante',d:'Protege contra respingos. Biqueira de aço onde há risco de queda de recipientes.',crit:false}
+  ];
+  const esp = [];
+  const c = p.c;
+  if (c==='1') {
+    esp.push({ico:'🧤',n:'Luvas de couro ou vaqueta (sem partes metálicas)',d:'Para manipulação de explosivos. Nenhuma parte metálica que gere faísca.',crit:true});
+    esp.push({ico:'⛑️',n:'Capacete de segurança (material não condutor)',d:'Proteção contra impacto.',crit:false});
+    esp.push({ico:'👔',n:'Roupa antichamas (Cl.1.1 a 1.3)',d:'Evitar tecidos sintéticos próximo a explosivos detonantes.',crit:true});
+  } else if (c==='2') {
+    if (p.s==='2.3' || p.tox) {
+      esp.push({ico:'😷',n:'Máscara autônoma SCBA ou máscara de fuga',d:'Gases tóxicos (Cl.2.3): filtro simples NÃO protege. SCBA usa cilindro de ar comprimido próprio.',crit:true});
+      esp.push({ico:'🧤',n:'Luvas de neoprene ou butyl (espessas)',d:'Resistentes a gases tóxicos liquefeitos corrosivos (cloro, amônia, fosgênio).',crit:true});
+      esp.push({ico:'🦺',n:'Macacão Tyvek ou traje de proteção química',d:'Proteção corporal total. Descartável após contato.',crit:true});
+    } else {
+      esp.push({ico:'🧤',n:'Luvas de nitrila ou neoprene',d:'Resistentes a gases liquefeitos inflamáveis (GLP, propano, butano). Evitar látex.',crit:false});
+      if (p.s==='2.1') esp.push({ico:'👟',n:'Calçado antiestático',d:'Evita faíscas eletrostáticas próximo a gases inflamáveis. Essencial na carga/descarga.',crit:true});
+      if (p.s==='2.2') esp.push({ico:'🧤',n:'Luvas criogênicas (se gás liquefeito)',d:'Para gases criogênicos (N₂ líquido, O₂ líquido): luvas específicas para abaixo de -100°C.',crit:false});
+    }
+  } else if (c==='3') {
+    esp.push({ico:'🧤',n:'Luvas de nitrila (mín. 0,2mm)',d:'Resistentes a solventes e líquidos inflamáveis. Se tóxico: luvas duplas ou neoprene.',crit:!!p.tox});
+    esp.push({ico:'👟',n:'Calçado antiestático',d:'Obrigatório próximo a líquidos inflamáveis. Impede descarga eletrostática.',crit:true});
+    esp.push({ico:'😷',n:'Máscara com filtro vapores orgânicos (tipo A)',d:'Para produtos com alta emanação de vapores: metanol, dissulfeto de carbono, acrilonitrila.',crit:!!p.tox});
+  } else if (c==='4.1' || c==='4.2') {
+    esp.push({ico:'🧤',n:'Luvas de couro ou raspa',d:'Proteção contra calor e ignição de sólidos inflamáveis.',crit:false});
+    esp.push({ico:'😷',n:'Máscara PFF2 (N95)',d:'Protege contra inalação de poeiras ou fumaça.',crit:false});
+  } else if (c==='4.3') {
+    esp.push({ico:'🧤',n:'Luvas impermeáveis (borracha ou PVC)',d:'CRÍTICO: qualquer contato com umidade pode gerar gás inflamável/tóxico.',crit:true});
+    esp.push({ico:'😷',n:'Máscara com filtro ou PFF2',d:'Gás emitido pode ser tóxico (ex: fosfeto de alumínio emite fosfina).',crit:true});
+  } else if (c==='5.1' || c==='5.2') {
+    esp.push({ico:'🧤',n:'Luvas de neoprene ou PVC (espessas)',d:'Oxidantes reagem com materiais orgânicos — couro e borracha natural NÃO são adequados.',crit:true});
+    esp.push({ico:'🥽',n:'Óculos de vedação tipo goggles',d:'Oxidantes e peróxidos causam queimaduras graves nos olhos.',crit:true});
+    esp.push({ico:'🦺',n:'Avental impermeável (polipropileno ou PVC)',d:'Evitar aventais de tecido comum — podem reagir com o oxidante.',crit:false});
+    esp.push({ico:'😷',n:'Máscara PFF2 (se poeira ou névoa)',d:'Nitratos e percloratos em pó irritam vias respiratórias.',crit:false});
+  } else if (c==='6.1') {
+    esp.push({ico:'🧤',n:'Luvas duplas: nitrila interna + neoprene externa',d:`GE I: duas camadas obrigatórias. GE II/III: nitrila simples pode ser suficiente conforme FDS.`,crit:true});
+    esp.push({ico:'😷',n:'Máscara com filtro ABEK ou SCBA (se vapores)',d:'Filtro ABEK: gases orgânicos + inorgânicos + ácidos + amônia. Concentração desconhecida: usar SCBA.',crit:p.g==='I'});
+    esp.push({ico:'🦺',n:'Macacão descartável (Tyvek)',d:'Para toxicidade aguda elevada. Evitar contato cutâneo.',crit:false});
+  } else if (c==='6.2') {
+    esp.push({ico:'🧤',n:'Luvas duplas de látex ou nitrila',d:'Dupla camada obrigatória — ruptura da interna, a externa mantém proteção.',crit:true});
+    esp.push({ico:'😷',n:'Máscara N95 (PFF2) no mínimo',d:'Categoria A (ONU 2814/2900): PFF3 ou superior. Categoria B: PFF2.',crit:true});
+    esp.push({ico:'🦺',n:'Macacão Tyvek descartável',d:'Proteção corporal completa. Não reutilizar.',crit:true});
+    esp.push({ico:'🥾',n:'Botas ou sapatilhas impermeáveis',d:'Contra derramamento de fluido biológico.',crit:false});
+  } else if (c==='7') {
+    esp.push({ico:'📟',n:'Dosímetro individual de radiação',d:'Mede a dose de radiação ionizante absorvida. Obrigatório próximo ao material.',crit:true});
+    esp.push({ico:'🧤',n:'Luvas plumbíferas (se radiação gama/x)',d:'Revestimento de chumbo. Consultar IT do pacote.',crit:true});
+    esp.push({ico:'🦺',n:'Avental plumbífero (conforme IT)',d:'IT > 1: avental de chumbo ou equivalente.',crit:false});
+  } else if (c==='8') {
+    esp.push({ico:'🧤',n:'Luvas de neoprene ou PVC espessas (≥0,4mm)',d:'Corrosivos causam queimaduras imediatas. Luvas finas de nitrila NÃO são suficientes para ácidos/bases concentrados.',crit:true});
+    esp.push({ico:'🥽',n:'Óculos de vedação total (goggles)',d:'Respingos de ácido sulfúrico causam cegueira permanente em segundos. Óculos comuns não protegem.',crit:true});
+    esp.push({ico:'🦺',n:'Avental impermeável de PVC ou neoprene',d:'Contra respingos na carga/descarga.',crit:false});
+    esp.push({ico:'🥾',n:'Botas de PVC (se risco de derramamento)',d:'Contra ácidos ou bases no piso.',crit:false});
+  } else {
+    esp.push({ico:'🧤',n:'Luvas de proteção adequadas ao produto',d:'Consultar Ficha de Dados de Segurança (FDS) do produto.',crit:false});
+  }
+  return {base, esp};
+}
+
+function renderEPIs(num, p) {
+  const {base, esp} = getEPIs(p);
+  let c = `<div style="font-size:12px;color:#555;margin-bottom:8px;"><strong>Art. 9º + MPO-005 §9 — EPIs NA CABINE, agrupados, em bom estado.</strong> Em quantidade limitada: dispensados do veículo.</div>`;
+  if (esp.length) {
+    c += `<div style="font-size:12px;font-weight:700;color:#c0392b;margin:0 0 5px;">⚠️ EPIs obrigatórios para Classe ${p.c} — ${classeNome(p.c)}:</div>`;
+    c += `<div class="epi-grid">`;
+    esp.forEach(e => {
+      c += `<div class="epi-chip${e.crit?' critico':''}"><span class="epi-ico">${e.ico}</span><div><div class="epi-nome">${e.n}${e.crit?' ⚠️':''}</div><div class="epi-desc">${e.d}</div></div></div>`;
+    });
+    c += `</div>`;
+  }
+  c += `<div style="font-size:12px;font-weight:700;color:#003580;margin:8px 0 5px;">EPIs base (todos os PP):</div>`;
+  c += `<div class="epi-grid">`;
+  base.forEach(e => { c += `<div class="epi-chip"><span class="epi-ico">${e.ico}</span><div><div class="epi-nome">${e.n}</div><div class="epi-desc">${e.d}</div></div></div>`; });
+  c += `</div>`;
+  return secao('🥼','EPIs — EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL', c, 'critico');
+}
+
+function renderEPIDispensado3509() {
+  return secao('🥼','EPIs E EQUIPAMENTOS DE EMERGÊNCIA',
+    `<div style="background:#e8f5e9;border:1px solid #1a7a2e;border-radius:6px;padding:10px;font-size:12px;color:#1a5c22;">
+      <strong>✅ EPI e ESE DISPENSADOS para ONU 3509 (MPO-005 §14)</strong><br>
+      Conjunto de EPIs e ESE dispensados para embalagens vazias não limpas.<br>
+      <strong>Extintor de incêndio permanece OBRIGATÓRIO.</strong>
+    </div>`, 'ok');
+}
+
+// ============================================================
+// SEÇÃO 7 — EQUIPAMENTOS DE EMERGÊNCIA + EXTINTORES
+// ============================================================
+function getExtintores(p) {
+  const c = p.c;
+  const d = {
+    '1':  {tipo:'Pó químico seco BC (6 kg)',fr:'1× 6 kg BC',gr:'2× 6 kg BC',obs:'NÃO usar água em explosivos detonantes (Cl.1.1 a 1.3). Para Cl.1.4S/1.4G: pó ABC aceitável.'},
+    '2.1':{tipo:'CO₂ (6 kg) ou Pó Químico Seco BC (6 kg)',fr:'1× 6 kg CO₂ ou PQS',gr:'2× 12 kg PQS ou 1× 20 kg CO₂',obs:'NÃO usar água em gases inflamáveis. Isolar e deixar vazar com segurança quando possível.'},
+    '2.2':{tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'1× 6 kg ABC',obs:'Padrão para gases não inflamáveis/inertes.'},
+    '2.3':{tipo:'CO₂ (6 kg) ou Pó Químico Seco BC (6 kg)',fr:'1× 6 kg CO₂',gr:'2× 12 kg CO₂ ou PQS',obs:'NÃO usar água em gases tóxicos liquefeitos corrosivos. CO₂ preferível para minimizar dispersão.'},
+    '3':  {tipo:'Pó Químico Seco ABC (6 kg) ou CO₂ (6 kg)',fr:'1× 6 kg (veículo ≤3,5t PBT) ou 2× 6 kg (>3,5t)',gr:'2× 12 kg (tanque ≤12.000 L) ou 2× 20 kg (>12.000 L)',obs:'NÃO usar jato de água direto — dispersa o líquido inflamável. Água em névoa pode ser usada para resfriamento.'},
+    '4.1':{tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'2× 6 kg ABC',obs:'Água pode ser usada em alguns sólidos — verificar FDS.'},
+    '4.2':{tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'2× 6 kg ABC',obs:'NÃO usar água na maioria. Areia seca como alternativa.'},
+    '4.3':{tipo:'Pó Químico Seco BC ESPECIAL ou Pó para metais (Pó D)',fr:'1× 6 kg PQS seco + balde de areia',gr:'2× 6 kg PQS seco + areia',obs:'NUNCA usar água ou espuma. CO₂ pode ser ineficaz para alguns metais. Verificar FDS.'},
+    '5.1':{tipo:'ÁGUA EM ABUNDÂNCIA — NÃO usar pó nem CO₂',fr:'1× extintor de água 10 L + acesso a água',gr:'Sistema de água ou 2× 50 L',obs:'Para oxidantes em chamas: SOMENTE água em grandes volumes. Pó químico pode reagir com oxidantes.'},
+    '5.2':{tipo:'ÁGUA EM ABUNDÂNCIA — nunca pó nem CO₂',fr:'1× extintor de água 10 L + acesso a água',gr:'Sistema de água ou 2× 50 L',obs:'Peróxidos orgânicos: NÃO usar pó ABC nem CO₂ — podem intensificar a reação.'},
+    '6.1':{tipo:'Pó Químico Seco ABC (6 kg) ou CO₂',fr:'1× 6 kg ABC',gr:'2× 6 kg ABC',obs:'Usar máscara autônoma antes de combater incêndio com produto tóxico.'},
+    '6.2':{tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'1× 6 kg ABC',obs:'Prioridade: nunca expor ao fogo sem EPI completo. Controle do incêndio é secundário à proteção da equipe.'},
+    '7':  {tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'1× 6 kg ABC',obs:'Radioativos: extintor para fogo secundário. Prioridade: distanciamento e isolamento. Chamar CNEN e Bombeiros.'},
+    '8':  {tipo:'CO₂ (6 kg) ou Pó Químico Seco BC (6 kg)',fr:'1× 6 kg CO₂ ou PQS',gr:'2× 6 kg CO₂ ou PQS',obs:'Para corrosivos concentrados: NÃO usar água sob pressão — dispersa o corrosivo. CO₂ preferível.'},
+    '9':  {tipo:'Pó Químico Seco ABC (6 kg)',fr:'1× 6 kg ABC',gr:'1× 6 kg ABC',obs:'Verificar FDS e Ficha de Emergência para o produto específico.'}
+  };
+  const k = ['2.1','2.2','2.3'].includes(p.s) ? p.s : p.c;
+  return d[k] || d[p.c.charAt(0)] || d['9'];
+}
+
+function getEquipEmerg(p) {
+  const base = [
+    {ico:'🪣',n:'Balde ou recipiente de contenção',d:'Para reter pequenos vazamentos antes que alcancem bueiros ou cursos d\'água.',crit:false},
+    {ico:'🧱',n:'Material absorvente (areia, serragem ou almofadas)',d:'Para absorver derramamentos no piso. NÃO usar material combustível com oxidantes.',crit:false},
+    {ico:'🔦',n:'Lanterna intrinsecamente segura (Ex/ATEX)',d:'Não gera faísca. NUNCA usar lanterna comum em atmosfera com vapores inflamáveis.',crit:false},
+    {ico:'🪚',n:'Pá e vassoura antiestáticas',d:'Para coleta de sólidos derramados. Pá sem partes metálicas que gerem faísca (plástico ou latão).',crit:false}
+  ];
+  const esp = [];
+  const c = p.c;
+  if (c==='1') {
+    esp.push({ico:'🚧',n:'Cone e fita de isolamento (raio mín. 300m para detonantes)',d:'Em acidente com explosivos: isolar e acionar Exército/Bombeiros imediatamente. Não manusear.',crit:true});
+    esp.push({ico:'🚫',n:'NÃO usar água em explosivos detonantes',d:'Água pode tornar alguns explosivos instáveis. Acionar Exército para procedimento correto.',crit:true});
+  } else if (c==='2') {
+    esp.push({ico:'🔧',n:'Chave para válvulas de cilindros e conexões',d:'Para fechamento de válvulas em caso de vazamento. Compatível com as válvulas do cilindro transportado.',crit:false});
+    esp.push({ico:'🧲',n:'Tampões e cápsulas de vedação sobressalentes',d:'Para vedar conexões com vazamento leve enquanto aguarda socorro especializado.',crit:false});
+    if (p.tox) esp.push({ico:'🚧',n:'Kit de vedação emergencial (gases tóxicos)',d:'Para cloro, amônia, fosgênio: kit de vedação específico para o tipo de cilindro. Vazamento maior: evacuar e chamar Bombeiros.',crit:true});
+  } else if (c==='3') {
+    esp.push({ico:'🧱',n:'Material absorvente específico para hidrocarbonetos',d:'Terra, areia ou almofadas absorventes para conter derramamento antes que chegue a bueiros.',crit:false});
+    esp.push({ico:'⚡',n:'Cabo de aterramento antiestático (granel)',d:'Aterrar o veículo antes de carga/descarga para dissipar eletricidade estática.',crit:false});
+  } else if (c==='4.3') {
+    esp.push({ico:'🚫',n:'NUNCA usar água — usar areia seca ou terra',d:'Cl.4.3 reage com água liberando gás inflamável (hidrogênio, fosfina). Combater com areia seca ou extintor para metais.',crit:true});
+    esp.push({ico:'🪣',n:'Balde de areia seca',d:'Principal agente de combate a incêndio e contenção para Cl.4.3.',crit:true});
+  } else if (c==='5.1' || c==='5.2') {
+    esp.push({ico:'💧',n:'Água em abundância — principal agente para oxidantes',d:'Para incêndio com oxidantes: grandes volumes de água para resfriar e diluir.',crit:true});
+    esp.push({ico:'🚫',n:'NÃO usar pó ABC com peróxidos orgânicos (5.2)',d:'O pó pode reagir com peróxidos e intensificar o fogo. Somente água.',crit:true});
+  } else if (c==='6.1') {
+    esp.push({ico:'🧱',n:'Kit de contenção e descontaminação (derramamento tóxico)',d:'Absorventes + saco para resíduo contaminado + solução descontaminante (água+sabão). Nunca jogar em bueiro.',crit:false});
+    esp.push({ico:'💊',n:'Ficha de emergência com número do CEATOX',d:'CEATOX: 0800 722 6001 (24h). Ligar imediatamente informando o produto e tempo de exposição.',crit:false});
+  } else if (c==='6.2') {
+    esp.push({ico:'🧱',n:'Kit de descontaminação biológica',d:'Absorvente específico para fluidos biológicos + saco infectante (amarelo) + pá descartável + solução de hipoclorito 1%.',crit:true});
+    esp.push({ico:'🚯',n:'Saco para resíduo infectante (amarelo/laranja com biorrisco)',d:'Todo material contaminado em saco de resíduo infectante — nunca em lixo comum.',crit:true});
+  } else if (c==='7') {
+    esp.push({ico:'📟',n:'Monitor de radiação (Geiger) — se disponível',d:'Verificar se há dispersão radioativa fora da embalagem. Sem ele: manter distância e chamar CNEN.',crit:true});
+    esp.push({ico:'📏',n:'Não aproximar sem avaliar o IT',d:'Quanto maior o IT, maior a dose de radiação a distância. Manter distância mínima de segurança.',crit:true});
+  } else if (c==='8') {
+    esp.push({ico:'💧',n:'Água limpa para lavagem (mín. 20 L)',d:'Em contato com corrosivo: lavar com água corrente por no mínimo 15 minutos contínuos.',crit:true});
+    esp.push({ico:'🧪',n:'Neutralizante adequado (para o piso)',d:'Ácidos: bicarbonato de sódio 2%. Bases: ácido cítrico diluído. Verificar FDS. Neutralizante é para o piso — NÃO aplicar na pele.',crit:false});
+    esp.push({ico:'🧱',n:'Material absorvente resistente a ácidos/bases',d:'Vermiculita, areia ou almofadas específicas. Evitar papel/serragem com ácido sulfúrico concentrado.',crit:false});
+  }
+  return {base, esp};
+}
+
+function renderEquipEmerg(num, p, tt) {
+  const ext = getExtintores(p);
+  const equip = getEquipEmerg(p);
+  let c = '';
+  if (p.onu3509) {
+    c += `<div style="background:#e8f5e9;border:1px solid #1a7a2e;border-radius:6px;padding:8px 12px;font-size:12px;color:#1a5c22;margin-bottom:8px;"><strong>✅ ESE DISPENSADO — ONU 3509</strong> (MPO-005 §14). Extintor permanece obrigatório.</div>`;
+  }
+  c += `<div class="ext-box">
+    <div class="ext-titulo">🧯 EXTINTOR DE INCÊNDIO — Classe ${p.c} (${classeNome(p.c)})</div>
+    <div class="ext-tipo"><strong>Tipo:</strong> ${ext.tipo}</div>
+    <div class="ext-qtd">
+      ${tt.fr ? `<span>📦 Fracionado: ${ext.fr}</span>` : ''}
+      ${tt.gr ? `<span>🚛 Granel: ${ext.gr}</span>` : ''}
+    </div>
+    <div class="ext-obs"><strong>⚠️ Atenção:</strong> ${ext.obs}</div>
+  </div>`;
+  if (!p.onu3509) {
+    c += `<div class="sub-titulo" style="margin-top:10px;">ESE — CONJUNTO PARA SITUAÇÕES DE EMERGÊNCIA (Art. 8º)</div>`;
+    c += `<div style="font-size:12px;color:#555;margin-bottom:5px;">Deve estar fora do compartimento de carga e acessível. Veículos ≤3,5t PBT: pode estar na carga se acessível sem mover outros volumes.</div>`;
+    c += `<div style="font-size:12px;font-weight:700;color:#003580;margin:4px 0 3px;">Base (todos os PP):</div>`;
+    c += `<div class="epi-grid">`;
+    equip.base.forEach(e => { c += `<div class="epi-chip"><span class="epi-ico">${e.ico}</span><div><div class="epi-nome">${e.n}</div><div class="epi-desc">${e.d}</div></div></div>`; });
+    c += `</div>`;
+    if (equip.esp.length) {
+      c += `<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 3px;">Específicos — Classe ${p.c}:</div>`;
+      c += `<div class="epi-grid">`;
+      equip.esp.forEach(e => { c += `<div class="epi-chip${e.crit?' critico':''}"><span class="epi-ico">${e.ico}</span><div><div class="epi-nome">${e.n}${e.crit?' ⚠️':''}</div><div class="epi-desc">${e.d}</div></div></div>`; });
+      c += `</div>`;
+    }
+  }
+  return secao('🧰','EQUIPAMENTOS DE EMERGÊNCIA (ESE + EXTINTORES)', c, 'critico');
+}
+
+// ============================================================
+// SEÇÃO 8 — PROIBIÇÕES
+// ============================================================
+function renderProibicoes(p) {
+  let c = `<div style="font-size:12px;color:#7a1c1c;margin-bottom:6px;">Qualquer infração abaixo pode ensejar retenção do veículo por risco iminente (Art. 40).</div>`;
+  c += item('🚭','PROIBIDO fumar ou usar cigarro eletrônico','Art. 17 VI — Em qualquer etapa do transporte (carregamento, trânsito e descarga). Inclui cigarros eletrônicos.','3º Grupo R$1.000');
+  c += item('👥','PROIBIDO passageiros não autorizados','Art. 17 I — Somente auxiliares necessários à operação. Familiares, carona e animais de estimação são vedados.','3º Grupo R$1.000');
+  c += item('🔥','PROIBIDO fogão, fogareiro ou equipamento de aquecimento','Art. 17 VII — Nenhum dispositivo de combustão em qualquer compartimento. Proibido também reservatório de combustível extra além do tanque original.','2º Grupo R$1.400');
+  c += item('🥩','PROIBIDO junto com alimentos, medicamentos ou cosméticos','Art. 17 III — Mesmo compartimento de carga. Exceção: cofre de carga estanque (Art. 18).','2º Grupo R$1.400');
+  c += item('🐄','PROIBIDO junto com animais vivos','Art. 17 V — Nenhum animal vivo no mesmo veículo, independente de separação física.','2º Grupo R$1.400');
+  c += item('🚧','PROIBIDO transbordo em via pública (salvo emergência)','Art. 17 IV — Transferir carga somente em caso de acidente ou avaria que impeça o prosseguimento.','2º Grupo R$1.400');
+  c += item('🏷️','PROIBIDO sinalização incorreta ou mantida após descarga','Art. 6º — Painel e rótulos devem corresponder ao produto. Após descarga: retirar ou cobrir.','2º Grupo R$1.400 (incorreta) | 4º Grupo R$600 (não retirou)');
+  c += item('🔒','PROIBIDO durante a fiscalização: abrir embalagens, fumar, entrar com chama','Art. 41 — O policial fiscal não pode abrir embalagens, fumar próximo ao veículo nem entrar na carroceria com fonte de ignição.',null);
+  if (p.c==='4.3') c += item('💧','PROIBIDO exposição à chuva (Cl.4.3)','Substância reage com água. Embalagem não pode estar danificada em dias de chuva.',null);
+  if (p.c==='5.1' || p.c==='5.2') c += item('🧴','PROIBIDO contato oxidante + combustível','Oxidantes em contato com inflamáveis podem causar ignição espontânea sem necessidade de chama.',null);
+  return `<div class="secao">
+    <div class="secao-header" onclick="toggleSecao(this)" style="background:#fff0f0;">
+      <span class="secao-icone">🚫</span>
+      <span class="secao-titulo" style="color:#c0392b;">PROIBIÇÕES</span>
+      <span class="secao-status status-critico">🔴 Crítico</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="secao-corpo">${c}</div>
+  </div>`;
+}
+
+// ============================================================
+// SEÇÃO 9 — CARACTERÍSTICAS TÉCNICAS OPERACIONAIS (GRANEL)
+// ============================================================
+function renderCaracTecnicas(p) {
+  let c = `<div style="font-size:12px;color:#555;margin-bottom:8px;">Irregularidades no veículo ou equipamento que geram enquadramento em <strong>Características Técnicas Operacionais</strong> — Ficha 34/80 MPO-005 — <strong>3º Grupo R$1.000,00</strong> (Cód. 1204 transportador / 1203 veículo).</div>`;
+  c += `<div class="sub-titulo">NO EQUIPAMENTO (TANQUE / CISTERNA)</div>`;
+  [
+    ['🔩','Bocas de visita','Abertas, travadas inadequadamente ou com vedação defeituosa — risco de vazamento durante o transporte.'],
+    ['⚙️','Válvulas de carga e descarga','Com defeito, vazamento visível, corroídas, danificadas ou impossibilitadas de fechar completamente.'],
+    ['📊','Manômetros e indicadores de pressão','Inoperantes, fora da faixa de calibração, vidro quebrado ou leitura impossível.'],
+    ['⚡','Aterramento elétrico (antiestático)','Cabo ausente, rompido ou sem contato adequado com o solo (obrigatório para inflamáveis e combustíveis).'],
+    ['🎨','Pintura e identificação do equipamento','Cor de identificação do produto apagada, encoberta ou não conforme norma (ex: GLP=amarelo, O₂=branco c/ faixa preta).'],
+    ['🏷️','Chapa de identificação do fabricante','Ausente, ilegível, adulterada ou com dados divergentes do CTPP/CIPP.'],
+    ['🔒','Selos de conformidade Inmetro','Ausentes ou irregulares nos equipamentos exigidos pelas Portarias Inmetro 127/128/134.'],
+  ].forEach(([ico,n,d]) => { c += `<div class="ct-item"><strong>${ico} ${n}:</strong> <span style="color:#555;">${d}</span></div>`; });
+  c += `<div class="sub-titulo">NO VEÍCULO TRACIONADOR / CARROCERIA</div>`;
+  [
+    ['💡','Sistema de sinalização e iluminação','Faróis, lanternas, setas ou luz de freio com defeito visível.'],
+    ['🛞','Pneus, rodas e roda sobressalente','Pneu careca, cordas aparentes, defeito estrutural ou roda sobressalente ausente.'],
+    ['🛑','Sistema de freios','Defeito visível: vazamento de ar, pedal mole, veículo não trava.'],
+    ['🔌','Fiação elétrica','Exposição, gambiarras ou curto-circuito visível — risco de ignição para produtos inflamáveis.'],
+    ['🔲','Protetor lateral e para-choque traseiro','Ausente, quebrado ou fora da norma.'],
+    ['⏱️','Cronotacógrafo','Em mau funcionamento (valores incoerentes, vibração, dano físico) — NÃO inclui disco ausente ou não preenchido.'],
+    ['🪟','Para-brisa e limpadores','Para-brisa trincado no campo visual, limpadores inoperantes em chuva.'],
+  ].forEach(([ico,n,d]) => { c += `<div class="ct-item"><strong>${ico} ${n}:</strong> <span style="color:#555;">${d}</span></div>`; });
+  c += `<div class="ct-nao"><strong>⚠️ NÃO são características técnicas operacionais (MPO-005 §11):</strong><br>
+    Excesso de peso • Disco/fita do cronotacógrafo ausente ou não preenchido • Tempos de direção/descanso • Exame toxicológico • Sistema ABS (veículos fabricados a partir de 2014) • Catracas manuais em veículos com ABS obrigatório.
+  </div>`;
+  return secao('⚙️','CARACTERÍSTICAS TÉCNICAS OPERACIONAIS — GRANEL (Art. 7º)', c, 'alerta');
+}
+
+// ============================================================
+// SEÇÃO 10 — EMERGÊNCIA
+// ============================================================
+function renderEmergencia(p, num) {
+  const c = `<div class="info-emergencia">
+    <div style="font-weight:700;margin-bottom:6px;">🚨 Procedimentos — Art. 24/27 Res. 5.998/2022 + MPO-040</div>
+    <ul>
+      <li>Avaliar a situação e usar EPIs + equipamentos disponíveis</li>
+      <li>Avisar: transportador, expedidor, Bombeiros 193, PRF 191, SAMU 192</li>
+      <li>Informar: local exato, <strong>ONU ${num}</strong>, quantidade estimada, natureza do acidente</li>
+      <li>Manter veículo sinalizado e sob vigilância constante</li>
+      <li>Transbordo em via pública: SOMENTE em caso de emergência ou sinistro (Art. 17 IV)</li>
+    </ul>
+    <div style="margin-top:8px;font-weight:700;">📞 Linha emergência ANTT: <span style="font-size:14px;">0800-644-9910</span> (24h)</div>
+    <div style="margin-top:4px;font-size:11px;color:#7a5800;">Para emergências com PP envolvendo acidentes: consultar <strong>MPO-040</strong>. Para crimes ambientais: <strong>MPO-034 / MPO-036</strong>.</div>
+  </div>
+  <div style="margin-top:6px;font-size:11px;color:#555;padding:6px 0;">
+    ⚠️ <strong>Durante a fiscalização (Art. 41):</strong> PROIBIDO abrir embalagens | PROIBIDO fumar próximo ao veículo | PROIBIDO entrar na carroceria com qualquer fonte de ignição.
+  </div>`;
+  return secao('🚨','EMERGÊNCIA / PROCEDIMENTOS', c, 'ok');
+}
+
+// ============================================================
+// TABELA DE MULTAS
+// ============================================================
+function renderMultas() {
+  return `<div class="secao">
+    <div class="secao-header" onclick="toggleSecao(this)">
+      <span class="secao-icone">⚖️</span>
+      <span class="secao-titulo">TABELA DE MULTAS — Res. 5.998/2022 Art. 42</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="secao-corpo">
+      <div class="multa-tabela">
+        <div style="font-weight:700;color:#003580;margin-bottom:6px;">Grupos de Infração</div>
+        <div class="multa-linha"><span>1º Grupo (gravíssimo) — Impedir fiscalização / produto proibido</span><span class="multa-valor">R$ 5.000,00</span></div>
+        <div class="multa-linha"><span>2º Grupo (grave) — Sem docs / sem certificados / embalagem errada</span><span class="multa-valor">R$ 1.400,00</span></div>
+        <div class="multa-linha"><span>3º Grupo (moderado) — Docs incompletos / EPIs inadequados / carac. técnicas</span><span class="multa-valor">R$ 1.000,00</span></div>
+        <div class="multa-linha"><span>4º Grupo (leve) — Irregularidades menores</span><span class="multa-valor">R$ 600,00</span></div>
+        <div class="multa-linha" style="border-top:1px dashed #ddd;margin-top:4px;padding-top:4px;">
+          <span>Reincidência (mesmo tipo, 12 meses)</span><span class="multa-valor">+25%</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#555;margin-top:8px;line-height:1.7;">
+        <strong>Retenção (Art. 40):</strong> Grave e iminente risco → reter até sanada a irregularidade.<br>
+        <strong>Infrações simultâneas:</strong> penalidades cumulativas (§2º Art. 42).<br>
+        <strong>Infrações simultâneas com mesma raiz (4 primeiros dígitos):</strong> lavrar um só auto.
+      </div>
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>
