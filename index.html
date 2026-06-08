@@ -25,21 +25,20 @@ header{background:var(--azul-prf);color:white;padding:12px 16px;display:flex;ali
 .logo{font-size:22px;font-weight:900;letter-spacing:1px;}
 .subtitulo{font-size:11px;opacity:.85;line-height:1.3;}
 
-/* SELETOR TIPO */
-.tipo-selector{display:flex;gap:6px;margin-bottom:10px;align-items:center;}
-.tipo-selector label{display:flex;align-items:center;gap:6px;padding:8px 14px;border:2px solid var(--borda);
-  border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;color:#555;transition:all .15s;user-select:none;}
-.tipo-selector label:hover{border-color:var(--azul-prf);color:var(--azul-prf);}
-.tipo-selector input[type=radio]{display:none;}
-.tipo-selector input[type=radio]:checked + span{color:white;}
-.tipo-selector label:has(input:checked){color:white;}
-.tipo-fr:has(input:checked){background:#0056b3;border-color:#0056b3;color:white;}
-.tipo-gr:has(input:checked){background:#e67e22;border-color:#e67e22;color:white;}
-/* Fallback para browsers sem :has() */
-.tipo-fr.ativo{background:#0056b3;border-color:#0056b3;color:white;}
-.tipo-gr.ativo{background:#e67e22;border-color:#e67e22;color:white;}
-.tipo-selector label span{pointer-events:none;}
-.tipo-disabled{opacity:.4;cursor:not-allowed!important;}
+/* ESCOLHA DE TIPO (pós-pesquisa) */
+.escolha-tipo{background:white;border-radius:10px;margin:12px;padding:20px 16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center;}
+.escolha-titulo{font-size:14px;font-weight:700;color:#333;margin-bottom:14px;line-height:1.5;}
+.escolha-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.escolha-btn{flex:1;max-width:200px;padding:16px 12px;border:3px solid;border-radius:10px;
+  font-size:15px;font-weight:900;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.escolha-btn-fr{background:#f0f4ff;border-color:#0056b3;color:#0056b3;}
+.escolha-btn-fr:hover,.escolha-btn-fr:active{background:#0056b3;color:white;}
+.escolha-btn-gr{background:#fff3e0;border-color:#e67e22;color:#e67e22;}
+.escolha-btn-gr:hover,.escolha-btn-gr:active{background:#e67e22;color:white;}
+.escolha-badge-tipo{display:inline-block;border-radius:6px;padding:4px 12px;font-size:12px;
+  font-weight:700;color:white;margin:0 14px 6px;cursor:pointer;}
+.escolha-badge-tipo:hover{opacity:.8;}
 
 /* BUSCA */
 .busca-container{background:white;padding:16px;border-bottom:2px solid var(--azul-prf);}
@@ -232,17 +231,7 @@ header{background:var(--azul-prf);color:white;padding:12px 16px;display:flex;ali
 </header>
 
 <div class="busca-container">
-  <div class="busca-label">Selecione o tipo de transporte e busque o produto</div>
-  <div class="tipo-selector">
-    <label class="tipo-fr">
-      <input type="radio" name="tipoTransp" value="fr" id="radioFR" checked>
-      <span>📦 Fracionado</span>
-    </label>
-    <label class="tipo-gr">
-      <input type="radio" name="tipoTransp" value="gr" id="radioGR">
-      <span>🚛 Granel</span>
-    </label>
-  </div>
+  <div class="busca-label">Digite o número ONU ou o nome do produto</div>
   <div class="busca-row">
     <input type="text" id="inputONU" class="busca-input" placeholder="1203"
       maxlength="4" inputmode="numeric" autocomplete="off">
@@ -608,36 +597,23 @@ const DB = {
 };
 
 // ============================================================
-// TIPO DE TRANSPORTE SELECIONADO
+// TIPO DE TRANSPORTE — estado global por pesquisa
 // ============================================================
+let _modoAtual = null;   // 'fr' | 'gr' | null (aguardando escolha)
+let _numAtual  = null;   // ONU atual
+
 function getModoSelecionado() {
-  return document.querySelector('input[name="tipoTransp"]:checked')?.value || 'fr';
+  return _modoAtual || 'fr';
 }
 
-function atualizarSeletor(p) {
-  const labelFR = document.querySelector('.tipo-fr');
-  const labelGR = document.querySelector('.tipo-gr');
-  const radioFR = document.getElementById('radioFR');
-  const radioGR = document.getElementById('radioGR');
-  if (!labelFR) return;
-  const soGranel   = p.tipo === 'granel';
-  const soFracion  = p.tipo === 'embalado';
-  if (soGranel) {
-    labelFR.classList.add('tipo-disabled');
-    radioFR.disabled = true;
-    radioGR.checked = true;
-    radioFR.checked = false;
-  } else if (soFracion) {
-    labelGR.classList.add('tipo-disabled');
-    radioGR.disabled = true;
-    radioFR.checked = true;
-    radioGR.checked = false;
-  } else {
-    labelFR.classList.remove('tipo-disabled');
-    labelGR.classList.remove('tipo-disabled');
-    radioFR.disabled = false;
-    radioGR.disabled = false;
-  }
+function escolherTipo(num, modo) {
+  _modoAtual = modo;
+  document.getElementById('resultado').innerHTML = renderProduto(num, DB[num]);
+  setTimeout(() => {
+    const s = document.querySelector('.secao-corpo');
+    if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
+    window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
+  }, 50);
 }
 
 // ============================================================
@@ -698,11 +674,17 @@ function selecionarProduto(num) {
   document.getElementById('listaResultados').classList.remove('visivel');
   const p = DB[num];
   if (!p) return;
-  atualizarSeletor(p);
+  _numAtual = num;
+  // Produtos de tipo único: definir modo automaticamente
+  if (p.tipo === 'granel')  _modoAtual = 'gr';
+  else if (p.tipo === 'embalado') _modoAtual = 'fr';
+  else _modoAtual = null;  // granel_embalado: aguarda escolha do usuário
   document.getElementById('resultado').innerHTML = renderProduto(num, p);
   setTimeout(() => {
-    const s = document.querySelector('.secao-corpo');
-    if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
+    if (_modoAtual !== null) {
+      const s = document.querySelector('.secao-corpo');
+      if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
+    }
     window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
   }, 50);
 }
@@ -710,8 +692,20 @@ function selecionarProduto(num) {
 function toggleSecao(el) {
   const c = el.nextElementSibling;
   const ch = el.querySelector('.chevron');
-  const aberto = c.classList.toggle('aberto');
-  ch.classList.toggle('open', aberto);
+  const vaiAbrir = !c.classList.contains('aberto');
+  // Fechar todas as seções abertas (accordion)
+  document.querySelectorAll('.secao-corpo.aberto').forEach(corpo => {
+    corpo.classList.remove('aberto');
+    const chv = corpo.previousElementSibling.querySelector('.chevron');
+    if (chv) chv.classList.remove('open');
+  });
+  // Abrir a seção clicada (se estava fechada)
+  if (vaiAbrir) {
+    c.classList.add('aberto');
+    ch.classList.add('open');
+    // Rolar suavemente para a seção
+    setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'start'}), 50);
+  }
 }
 
 // Registro do Service Worker (PWA)
@@ -743,27 +737,10 @@ function instalarApp() {
   }
 }
 
-// Enter e seletor de tipo
+// Tecla Enter nos campos de busca
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inputONU').addEventListener('keydown', e => { if (e.key==='Enter') buscar(); });
   document.getElementById('inputNome').addEventListener('keydown', e => { if (e.key==='Enter') buscar(); });
-
-  // Fallback visual para browsers sem suporte a :has()
-  function atualizarVisuais() {
-    const val = getModoSelecionado();
-    document.querySelector('.tipo-fr').classList.toggle('ativo', val === 'fr');
-    document.querySelector('.tipo-gr').classList.toggle('ativo', val === 'gr');
-  }
-  document.querySelectorAll('input[name="tipoTransp"]').forEach(r => {
-    r.addEventListener('change', () => {
-      atualizarVisuais();
-      const num = document.getElementById('inputONU').value.trim();
-      if (DB[num]) {
-        document.getElementById('resultado').innerHTML = renderProduto(num, DB[num]);
-      }
-    });
-  });
-  atualizarVisuais();
 });
 
 // ============================================================
@@ -803,16 +780,14 @@ function tag(tipo, texto) {
 // RENDER PRINCIPAL
 // ============================================================
 function renderProduto(num, p) {
-  const modo = getModoSelecionado(); // 'fr' ou 'gr'
-  // Forçar modo conforme o tipo do produto
-  const modoEfetivo = p.tipo === 'granel' ? 'gr' : p.tipo === 'embalado' ? 'fr' : modo;
+  const modoEfetivo = _modoAtual || (p.tipo === 'granel' ? 'gr' : 'fr');
   const tt = { fr: modoEfetivo === 'fr', gr: modoEfetivo === 'gr', label: modoEfetivo === 'gr' ? '🚛 GRANEL' : '📦 FRACIONADO', cor: modoEfetivo === 'gr' ? '#e67e22' : '#0056b3' };
   const temQL = p.q !== "zero" && p.q != null && p.q > 0;
   const qlimZero = p.q === "zero";
 
   let html = `<div class="card-produto">`;
 
-  // Cabeçalho
+  // Cabeçalho (sempre visível)
   html += `<div class="card-header">
     <div class="onu-badge">ONU<br><span>${num}</span></div>`;
   if (p.r) html += `<div class="nr-painel"><span class="nr-label">Nº RISCO</span><span class="nr-num">${p.r}</span><span class="nr-label">NUM. ONU</span></div>`;
@@ -828,12 +803,25 @@ function renderProduto(num, p) {
   <div class="classe-badge ${getClasseCss(p.c)}">${p.c}</div>
   </div>`;
 
-  // Badge tipo de transporte + aviso se produto não suporta modo selecionado
-  const tipoOriginal = tipoTransp(p);
-  let avisoTipo = '';
-  if (p.tipo === 'granel' && modo === 'fr') avisoTipo = `<span style="background:#fff3cd;color:#7a5800;border-radius:5px;padding:2px 8px;font-size:11px;margin-left:8px;">⚠️ Este produto é <strong>somente granel</strong> — exibindo requisitos de granel</span>`;
-  if (p.tipo === 'embalado' && modo === 'gr') avisoTipo = `<span style="background:#fff3cd;color:#7a5800;border-radius:5px;padding:2px 8px;font-size:11px;margin-left:8px;">⚠️ Este produto é <strong>somente fracionado</strong> — exibindo requisitos fracionado</span>`;
-  html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:0 14px 6px;"><div class="tipo-badge" style="background:${tt.cor};margin:0;">${tt.label}</div>${tipoOriginal.fr && tipoOriginal.gr ? '<span style="font-size:11px;color:#888;padding:2px 6px;">Produto pode ser fracionado e a granel — mostrando o tipo selecionado</span>' : ''}${avisoTipo}</div>`;
+  // Se produto admite ambos os tipos E modo ainda não foi escolhido: mostrar seletor
+  if (p.tipo === 'granel_embalado' && _modoAtual === null) {
+    html += `</div>`;
+    html += `<div class="escolha-tipo">
+      <div class="escolha-titulo">Como este produto está sendo transportado?</div>
+      <div class="escolha-btns">
+        <button class="escolha-btn escolha-btn-fr" onclick="escolherTipo('${num}','fr')">📦<br>FRACIONADO<br><span style="font-size:11px;font-weight:400;">embalagens/volumes</span></button>
+        <button class="escolha-btn escolha-btn-gr" onclick="escolherTipo('${num}','gr')">🚛<br>GRANEL<br><span style="font-size:11px;font-weight:400;">cisterna/tanque</span></button>
+      </div>
+    </div>`;
+    return html;
+  }
+
+  // Badge do modo selecionado (clicável para trocar)
+  const podeAlternar = p.tipo === 'granel_embalado';
+  const badgeExtra = podeAlternar
+    ? `<span class="escolha-badge-tipo" style="background:${tt.cor};" onclick="_modoAtual=null;selecionarProduto('${num}')" title="Clique para trocar o tipo">${tt.label} ↺</span>`
+    : `<span class="tipo-badge" style="background:${tt.cor};margin:6px 14px 0;">${tt.label}</span>`;
+  html += badgeExtra;
 
   // Alertas especiais
   if (p.obs) html += `<div class="alert-card" style="background:#f0f7ff;border-color:#0056b3;color:#003580;"><strong>ℹ️</strong> ${p.obs}</div>`;
@@ -1089,8 +1077,9 @@ function renderCargaEmbalagem(num, p, tt) {
     `${tag('atencao','ATENÇÃO')} Classes 5.1 e 5.2 reagem violentamente com inflamáveis e materiais orgânicos. Verificar se não há combustíveis no mesmo compartimento.`,null);
   if (p.c==='4.3') c += item('💧','PROIBIDO contato com água',
     `${tag('atencao','ATENÇÃO')} Embalagem hermeticamente fechada. NÃO transportar com embalagem danificada em chuva.`,null);
-  c += item('🥩','PROIBIDO junto com alimentos, medicamentos ou animais',
-    `${tag('obrigatorio','PROIBIDO')} Art. 17 III e V — Mesmo compartimento. Exceção: cofre de carga estanque (Art. 18).`,'2º Grupo R$1.400');
+  c += `<div style="background:#fde8e8;border:1px solid #e57373;border-radius:6px;padding:7px 12px;font-size:12px;color:#7a1c1c;margin-top:6px;">
+    ⚠️ Proibições de transporte junto com alimentos, animais, fumar, etc. estão na aba <strong>Proibições</strong>.
+  </div>`;
   return secao('📦','CARGA, EMBALAGEM E INCOMPATIBILIDADES', c, 'alerta');
 }
 
@@ -1160,13 +1149,9 @@ function renderDocumentacao(num, p, tt) {
     '4º Grupo R$600');
 
   if (tt.gr) {
-    c += `<div class="sub-titulo">GRANEL — DOCUMENTOS ADICIONAIS</div>`;
-    c += item('📋','CTPP ou CIPP — original, dentro da validade',
-      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Original (não cópia). Produto <strong>${p.n.split(' ')[0]}</strong> deve constar.`,
-      '2º Grupo R$1.400 (vencido/ausente) | 3º Grupo R$1.000 (sem original)');
-    c += item('📋','CIV — Certificado de Inspeção Veicular original',
-      `${tag('granel','GRANEL')} ${tag('obrigatorio','OBRIGATÓRIO')} Original, sem rasuras, dados compatíveis com CRLV.`,
-      '2º Grupo R$1.400 | 3º Grupo R$1.000');
+    c += `<div style="background:#fff3e0;border:1px solid #e67e22;border-radius:6px;padding:7px 12px;font-size:12px;color:#7a3800;margin:8px 0;">
+      <strong>🚛 GRANEL:</strong> CIV e CTPP/CIPP são verificados na aba <strong>Veículo e Sinalização</strong>.
+    </div>`;
   }
   if (p.c==='1') c += item('🪖','Guia de Tráfego / Licença Exército ou PF',
     `${tag('obrigatorio','OBRIGATÓRIO')} Explosivos de uso civil: Guia de Tráfego do Exército Brasileiro. Sem este documento o transporte é irregular.`,null);
@@ -1442,9 +1427,7 @@ function renderEmergencia(p, num) {
     <div style="margin-top:8px;font-weight:700;">📞 Linha emergência ANTT: <span style="font-size:14px;">0800-644-9910</span> (24h)</div>
     <div style="margin-top:4px;font-size:11px;color:#7a5800;">Para emergências com PP envolvendo acidentes: consultar <strong>MPO-040</strong>. Para crimes ambientais: <strong>MPO-034 / MPO-036</strong>.</div>
   </div>
-  <div style="margin-top:6px;font-size:11px;color:#555;padding:6px 0;">
-    ⚠️ <strong>Durante a fiscalização (Art. 41):</strong> PROIBIDO abrir embalagens | PROIBIDO fumar próximo ao veículo | PROIBIDO entrar na carroceria com qualquer fonte de ignição.
-  </div>`;
+  `;
   return secao('🚨','EMERGÊNCIA / PROCEDIMENTOS', c, 'ok');
 }
 
