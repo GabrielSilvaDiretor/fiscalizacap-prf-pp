@@ -28,6 +28,30 @@ header{background:var(--azul-escuro);color:white;padding:14px 18px;display:flex;
   gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 rgba(255,255,255,.06),0 4px 16px rgba(0,0,0,.18);}
 .logo{font-size:20px;font-weight:800;letter-spacing:.3px;}
 .subtitulo{font-size:11px;opacity:.8;line-height:1.35;font-weight:500;}
+#btnMenu{background:rgba(255,255,255,.12);border:none;color:white;width:38px;height:38px;
+  border-radius:10px;font-size:18px;cursor:pointer;flex-shrink:0;transition:background .15s;}
+#btnMenu:hover{background:rgba(255,255,255,.22);}
+
+/* SIDEBAR MENU */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:199;
+  opacity:0;pointer-events:none;transition:opacity .2s;}
+.sidebar-overlay.visivel{opacity:1;pointer-events:auto;}
+.sidebar{position:fixed;top:0;left:0;height:100%;width:280px;max-width:85vw;background:white;
+  z-index:200;box-shadow:4px 0 24px rgba(0,0,0,.15);transform:translateX(-100%);
+  transition:transform .25s ease;display:flex;flex-direction:column;}
+.sidebar.aberta{transform:translateX(0);}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;background:var(--azul-escuro);color:white;font-size:14px;font-weight:700;}
+.sidebar-header button{background:rgba(255,255,255,.12);border:none;color:white;
+  width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;}
+.sidebar-header button:hover{background:rgba(255,255,255,.22);}
+.sidebar-items{flex:1;overflow-y:auto;padding:8px;}
+.sidebar-vazio{padding:24px 14px;font-size:12px;color:var(--texto-sec);text-align:center;line-height:1.7;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;
+  cursor:pointer;font-size:13px;font-weight:600;color:var(--texto);transition:background .12s;margin-bottom:2px;}
+.sidebar-item:hover{background:#f1f5f9;}
+.sidebar-item:active{background:#e2e8f0;}
+.sidebar-item-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
 
 /* ESCOLHA DE TIPO (pós-pesquisa) */
 .escolha-tipo{background:white;border-radius:var(--raio);margin:14px;padding:28px 20px;
@@ -223,6 +247,7 @@ header{background:var(--azul-escuro);color:white;padding:14px 18px;display:flex;
 <body>
 
 <header>
+  <button id="btnMenu" onclick="toggleMenu()" aria-label="Abrir menu de seções">☰</button>
   <div>
     <div class="logo">🚔 PRF</div>
   </div>
@@ -239,6 +264,17 @@ header{background:var(--azul-escuro);color:white;padding:14px 18px;display:flex;
     ⬇️ Instalar App
   </button>
 </header>
+
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMenu()"></div>
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-header">
+    <span>📋 Seções</span>
+    <button onclick="closeMenu()" aria-label="Fechar menu">✕</button>
+  </div>
+  <div id="sidebarItems" class="sidebar-items">
+    <div class="sidebar-vazio">Pesquise um produto para ver as seções disponíveis.</div>
+  </div>
+</nav>
 
 <div class="busca-container">
   <div class="busca-label">Digite o número ONU ou o nome do produto</div>
@@ -619,6 +655,7 @@ function getModoSelecionado() {
 function escolherTipo(num, modo) {
   _modoAtual = modo;
   document.getElementById('resultado').innerHTML = renderProduto(num, DB[num]);
+  atualizarMenuLateral();
   setTimeout(() => {
     const s = document.querySelector('.secao-corpo');
     if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
@@ -690,6 +727,7 @@ function selecionarProduto(num) {
   else if (p.tipo === 'embalado') _modoAtual = 'fr';
   else _modoAtual = null;  // granel_embalado: aguarda escolha do usuário
   document.getElementById('resultado').innerHTML = renderProduto(num, p);
+  atualizarMenuLateral();
   setTimeout(() => {
     if (_modoAtual !== null) {
       const s = document.querySelector('.secao-corpo');
@@ -697,6 +735,46 @@ function selecionarProduto(num) {
     }
     window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
   }, 50);
+}
+
+// ============================================================
+// MENU LATERAL (SIDEBAR)
+// ============================================================
+function toggleMenu() {
+  document.getElementById('sidebar').classList.toggle('aberta');
+  document.getElementById('sidebarOverlay').classList.toggle('visivel');
+}
+function closeMenu() {
+  document.getElementById('sidebar').classList.remove('aberta');
+  document.getElementById('sidebarOverlay').classList.remove('visivel');
+}
+function atualizarMenuLateral() {
+  const container = document.getElementById('sidebarItems');
+  const secoes = document.querySelectorAll('#resultado .secao');
+  if (!secoes.length) {
+    container.innerHTML = '<div class="sidebar-vazio">Pesquise um produto para ver as seções disponíveis.</div>';
+    return;
+  }
+  container.innerHTML = Array.from(secoes).map((s, i) => {
+    const ico = s.querySelector('.secao-icone')?.textContent || '📄';
+    const titulo = s.querySelector('.secao-titulo')?.textContent || '';
+    return `<div class="sidebar-item" onclick="irParaSecao(${i})"><span class="sidebar-item-ico">${ico}</span><span>${titulo}</span></div>`;
+  }).join('');
+}
+function irParaSecao(i) {
+  const headers = document.querySelectorAll('#resultado .secao-header');
+  const header = headers[i];
+  closeMenu();
+  if (!header) return;
+  document.querySelectorAll('.secao-corpo.aberto').forEach(corpo => {
+    corpo.classList.remove('aberto');
+    const chv = corpo.previousElementSibling.querySelector('.chevron');
+    if (chv) chv.classList.remove('open');
+  });
+  const corpo = header.nextElementSibling;
+  corpo.classList.add('aberto');
+  header.querySelector('.chevron').classList.add('open');
+  setTimeout(() => header.scrollIntoView({behavior:'smooth', block:'start'}), 280);
 }
 
 function toggleSecao(el) {
