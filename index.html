@@ -51,6 +51,7 @@ header{background:var(--azul-escuro);color:white;padding:14px 18px;display:flex;
   cursor:pointer;font-size:13px;font-weight:600;color:var(--texto);transition:background .12s;margin-bottom:2px;}
 .sidebar-item:hover{background:#f1f5f9;}
 .sidebar-item:active{background:#e2e8f0;}
+.sidebar-item.ativo{background:#dbeafe;color:var(--azul-prf);}
 .sidebar-item-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
 
 /* ESCOLHA DE TIPO (pós-pesquisa) */
@@ -120,6 +121,12 @@ header{background:var(--azul-escuro);color:white;padding:14px 18px;display:flex;
 
 /* ALERTA NO CARD */
 .alert-card{padding:10px 16px;font-size:12px;border-left:3px solid;line-height:1.6;font-weight:500;}
+
+/* AVISO PARA USAR O MENU */
+.aviso-selecione{display:flex;align-items:center;gap:12px;padding:20px 18px;margin:8px 14px;
+  background:#eff6ff;border:1.5px dashed #93c5fd;border-radius:var(--raio-sm);
+  font-size:13px;color:#1e40af;line-height:1.6;}
+.aviso-selecione.oculto{display:none;}
 
 /* SEÇÕES ACCORDION */
 .secao{border-bottom:1px solid #f1f5f9;}
@@ -656,11 +663,8 @@ function escolherTipo(num, modo) {
   _modoAtual = modo;
   document.getElementById('resultado').innerHTML = renderProduto(num, DB[num]);
   atualizarMenuLateral();
-  setTimeout(() => {
-    const s = document.querySelector('.secao-corpo');
-    if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
-    window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
-  }, 50);
+  setTimeout(() => toggleMenu(), 100);
+  setTimeout(() => window.scrollTo(0, document.getElementById('resultado').offsetTop - 60), 50);
 }
 
 // ============================================================
@@ -728,13 +732,8 @@ function selecionarProduto(num) {
   else _modoAtual = null;  // granel_embalado: aguarda escolha do usuário
   document.getElementById('resultado').innerHTML = renderProduto(num, p);
   atualizarMenuLateral();
-  setTimeout(() => {
-    if (_modoAtual !== null) {
-      const s = document.querySelector('.secao-corpo');
-      if (s) { s.classList.add('aberto'); s.previousElementSibling.querySelector('.chevron').classList.add('open'); }
-    }
-    window.scrollTo(0, document.getElementById('resultado').offsetTop - 60);
-  }, 50);
+  if (_modoAtual !== null) setTimeout(() => toggleMenu(), 100);
+  setTimeout(() => window.scrollTo(0, document.getElementById('resultado').offsetTop - 60), 50);
 }
 
 // ============================================================
@@ -758,23 +757,29 @@ function atualizarMenuLateral() {
   container.innerHTML = Array.from(secoes).map((s, i) => {
     const ico = s.querySelector('.secao-icone')?.textContent || '📄';
     const titulo = s.querySelector('.secao-titulo')?.textContent || '';
-    return `<div class="sidebar-item" onclick="irParaSecao(${i})"><span class="sidebar-item-ico">${ico}</span><span>${titulo}</span></div>`;
+    return `<div class="sidebar-item" data-idx="${i}" onclick="irParaSecao(${i})"><span class="sidebar-item-ico">${ico}</span><span>${titulo}</span></div>`;
   }).join('');
+  ocultarTodasSecoes();
+}
+function ocultarTodasSecoes() {
+  document.querySelectorAll('#resultado .secao').forEach(s => { s.style.display = 'none'; });
+  const aviso = document.getElementById('avisoSelecione');
+  if (aviso) aviso.classList.remove('oculto');
 }
 function irParaSecao(i) {
-  const headers = document.querySelectorAll('#resultado .secao-header');
-  const header = headers[i];
+  const secoes = document.querySelectorAll('#resultado .secao');
+  const secao = secoes[i];
   closeMenu();
-  if (!header) return;
-  document.querySelectorAll('.secao-corpo.aberto').forEach(corpo => {
-    corpo.classList.remove('aberto');
-    const chv = corpo.previousElementSibling.querySelector('.chevron');
-    if (chv) chv.classList.remove('open');
-  });
-  const corpo = header.nextElementSibling;
+  if (!secao) return;
+  secoes.forEach((s, idx) => { s.style.display = idx === i ? 'block' : 'none'; });
+  const aviso = document.getElementById('avisoSelecione');
+  if (aviso) aviso.classList.add('oculto');
+  const header = secao.querySelector('.secao-header');
+  const corpo = secao.querySelector('.secao-corpo');
   corpo.classList.add('aberto');
   header.querySelector('.chevron').classList.add('open');
-  setTimeout(() => header.scrollIntoView({behavior:'smooth', block:'start'}), 280);
+  document.querySelectorAll('.sidebar-item').forEach(it => it.classList.toggle('ativo', Number(it.dataset.idx) === i));
+  setTimeout(() => document.getElementById('resultado').scrollIntoView({behavior:'smooth', block:'start'}), 280);
 }
 
 function toggleSecao(el) {
@@ -954,6 +959,10 @@ function renderProduto(num, p) {
     </div>`;
   }
 
+  html += `<div id="avisoSelecione" class="aviso-selecione">
+    <span style="font-size:22px;">👈</span>
+    <div>Toque no menu <strong>☰</strong> e escolha um tema para ver as exigências específicas.</div>
+  </div>`;
   html += renderSecoes(num, p, tt, temQL, qlimZero);
   html += renderMultas();
   html += `</div>`;
